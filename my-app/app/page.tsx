@@ -73,7 +73,7 @@ export default function UserProfileDashboard() {
       <div className="w-full max-w-laptop px-4">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold mb-2 text-charcoal">Your Profile</h1>
-          <p className="text-muted mb-4 text-sm">
+          <p className="text-black mb-4 text-sm">
             Set your experience, trading style, risk tolerance, and investment goal for personalized recommendations.
           </p>
         </div>
@@ -206,7 +206,7 @@ export default function UserProfileDashboard() {
                       <span className="ml-1">({rec.rating}/5)</span>
                     </div>
                   )}
-                  <div className="mt-2 flex items-center justify-center gap-2 text-xs text-muted">
+                  <div className="mt-2 flex items-center justify-center gap-2 text-xs text-black">
                     <span>24h {rec.change1D}</span>
                     <span>· 1W {rec.change1W}</span>
                     <span>· 1M {rec.change1M}</span>
@@ -214,22 +214,22 @@ export default function UserProfileDashboard() {
                   {expanded[rec.symbol] && (
                     <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="p-3 bg-gray-100 border border-gray-300">
-                        <div className="text-xs text-muted">P/E Ratio</div>
+                        <div className="text-xs text-black">P/E Ratio</div>
                         <div className="font-semibold">{rec.pe ?? "—"}</div>
                       </div>
                       <div className="p-3 bg-gray-100 border border-gray-300">
-                        <div className="text-xs text-muted">EPS</div>
+                        <div className="text-xs text-black">EPS</div>
                         <div className="font-semibold">{rec.eps ?? "—"}</div>
                       </div>
                       <div className="p-3 bg-gray-100 border border-gray-300">
-                        <div className="text-xs text-muted">Dividend Yield</div>
+                        <div className="text-xs text-black">Dividend Yield</div>
                         <div className="font-semibold">{rec.dy ?? "—"}%</div>
                       </div>
                       <div className="sm:col-span-3 text-sm text-black text-center">
                         <span className="font-semibold">Strategy Alignment:</span> {rec.reasoning}
                       </div>
                       <div className="sm:col-span-3 text-center">
-                        <span className="text-xs text-muted">Signal:</span>{" "}
+                        <span className="text-xs text-black">Signal:</span>{" "}
                         <span className={`ml-1 text-sm font-semibold ${rec.signal === "Buy" ? "text-green-600" : rec.signal === "Sell" ? "text-red-600" : "text-yellow-600"}`}>{rec.signal || "Hold"}</span>
                       </div>
                       {/* Chart */}
