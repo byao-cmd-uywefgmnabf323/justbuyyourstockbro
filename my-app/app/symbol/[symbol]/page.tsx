@@ -26,6 +26,9 @@ export default function SymbolDetailPage() {
   const [interval, setInterval] = useState<"1d" | "1h" | "1wk">("1d");
   const [candles, setCandles] = useState<Array<{ t: number; c: number }>>([]);
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiBullets, setAiBullets] = useState<string[]>([]);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadQuote = async () => {
@@ -54,6 +57,34 @@ export default function SymbolDetailPage() {
     loadHistory();
     return () => { mounted = false; };
   }, [symbol, range, interval]);
+
+  // Load AI reasons for symbol
+  useEffect(() => {
+    let mounted = true;
+    const loadReasons = async () => {
+      try {
+        setAiLoading(true);
+        setAiError(null);
+        const res = await fetch('/api/ai/reason', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol }),
+        });
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(txt || 'AI reason failed');
+        }
+        const j = await res.json();
+        if (mounted) setAiBullets(Array.isArray(j.bullets) ? j.bullets.slice(0, 8) : []);
+      } catch (e: any) {
+        if (mounted) setAiError('Unable to load AI reasons');
+      } finally {
+        if (mounted) setAiLoading(false);
+      }
+    };
+    loadReasons();
+    return () => { mounted = false; };
+  }, [symbol]);
 
   // Indicator helpers
   const closes = useMemo(() => candles.map(c => c.c), [candles]);
@@ -164,6 +195,18 @@ export default function SymbolDetailPage() {
               <li><span className="font-semibold">RSI(14):</span> {fmt(stats.rsi)}</li>
               <li><span className="font-semibold">MACD / Signal / Hist:</span> {fmt(stats.macd)} / {fmt(stats.macdSignal)} / {fmt(stats.macdHist)}</li>
             </ul>
+            <div className="mt-4">
+              <h3 className="font-semibold text-charcoal mb-1">AI Reasons</h3>
+              {aiLoading && <div className="text-sm text-black">Generating…</div>}
+              {aiError && <div className="text-sm text-red-600">{aiError}</div>}
+              {!aiLoading && !aiError && aiBullets.length > 0 && (
+                <ul className="list-disc pl-5 text-sm text-black space-y-1">
+                  {aiBullets.map((b, i) => (
+                    <li key={i}>{b}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
             <div className="mt-4">
               <Link href="/" className="text-sm underline">Back to Home</Link>
             </div>
