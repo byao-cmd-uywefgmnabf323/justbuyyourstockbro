@@ -11,6 +11,11 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen py-10 bg-background">
       <div className="w-full max-w-laptop mx-auto px-4">
+        <div className="mb-4">
+          <Link href="/" className="inline-flex items-center border border-gray-900 bg-white text-black px-3 py-1.5 text-sm rounded-none hover:opacity-80">
+            ← Back to Home
+          </Link>
+        </div>
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-black">Dashboard</h1>
           <p className="text-sm text-black mt-1">Your personalized overview, recommendations, and watchlist.</p>
@@ -18,7 +23,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           {/* AI Advisor */}
-          <section className="lg:col-span-2 border border-gray-300 bg-white p-4">
+          <section className="lg:col-span-2 border border-white bg-white p-4">
             <AIAdvisor />
           </section>
           {/* Recommendation Summary (placeholder) */}

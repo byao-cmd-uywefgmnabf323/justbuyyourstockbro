@@ -141,10 +141,10 @@ export default function SymbolDetailPage() {
           </div>
           <div className="flex gap-2">
             {(["1mo","3mo","6mo","1y","ytd","max"] as const).map((r) => (
-              <button key={r} onClick={() => setRange(r)} className={`px-3 py-1 border ${range===r?"bg-foreground text-white":"bg-white text-charcoal"}`}>{r}</button>
+              <button key={r} onClick={() => setRange(r)} className={`px-3 py-1 border ${range===r?"bg-gray-200":"bg-white"} text-black`}>{r}</button>
             ))}
             {(["1d","1h","1wk"] as const).map((iv) => (
-              <button key={iv} onClick={() => setInterval(iv)} className={`px-3 py-1 border ${interval===iv?"bg-foreground text-white":"bg-white text-charcoal"}`}>{iv}</button>
+              <button key={iv} onClick={() => setInterval(iv)} className={`px-3 py-1 border ${interval===iv?"bg-gray-200":"bg-white"} text-black`}>{iv}</button>
             ))}
           </div>
         </div>

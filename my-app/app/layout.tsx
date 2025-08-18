@@ -34,7 +34,7 @@ export default function RootLayout({
             <nav className="flex items-center gap-3">
               <Link
                 href="/dashboard"
-                className="inline-flex items-center rounded-md bg-charcoal px-3 py-1.5 text-sm font-medium text-white hover:bg-charcoal/90"
+                className="inline-flex items-center rounded-md bg-black px-3 py-1.5 text-sm font-medium text-white hover:bg-black/90"
               >
                 Dashboard
               </Link>

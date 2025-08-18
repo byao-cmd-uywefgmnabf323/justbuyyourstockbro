@@ -15,7 +15,7 @@ export default function AuthedLayout({ children }: { children: React.ReactNode }
     <div className="flex min-h-screen bg-slate-50">
       {/* Sidebar */}
       <aside className="w-56 bg-white border-r border-slate-200 flex flex-col py-8 px-4">
-        <div className="font-extrabold text-blue-700 text-xl mb-10 tracking-tight">JustBuyYourStockBro</div>
+        {/* Brand removed for minimal look */}
         <nav className="flex-1">
           <ul className="space-y-2">
             {navLinks.map((link) => (
@@ -34,14 +34,7 @@ export default function AuthedLayout({ children }: { children: React.ReactNode }
       </aside>
       {/* Main content */}
       <div className="flex-1 flex flex-col">
-        {/* Top nav */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center px-8 justify-between">
-          <div className="font-semibold text-lg text-blue-700">Welcome back!</div>
-          <div className="flex items-center gap-4">
-            {/* Profile/avatar placeholder */}
-            <div className="w-9 h-9 rounded-full bg-blue-200 flex items-center justify-center font-bold text-blue-700">U</div>
-          </div>
-        </header>
+        {/* Top header removed for minimal look */}
         <main className="flex-1 p-8 overflow-y-auto">{children}</main>
       </div>
     </div>
