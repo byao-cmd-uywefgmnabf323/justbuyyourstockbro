@@ -21,6 +21,9 @@ export default function UserProfileDashboard() {
   const [style, setStyle] = useState<string[]>([]);
   const [risk, setRisk] = useState(1);
   const [goal, setGoal] = useState("");
+  const [expDetails, setExpDetails] = useState("");
+  const [horizon, setHorizon] = useState("6M");
+  const [sectors, setSectors] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +39,10 @@ export default function UserProfileDashboard() {
     );
   };
 
+  const toggleSector = (val: string) => {
+    setSectors((prev) => (prev.includes(val) ? prev.filter((s) => s !== val) : [...prev, val]));
+  };
+
   const generate = async () => {
     setLoading(true);
     setError(null);
@@ -43,19 +50,21 @@ export default function UserProfileDashboard() {
     try {
       const body = {
         riskTolerance: riskLevels[risk].toLowerCase(),
-        timeHorizon: "6M", // placeholder, can be wired later
-        style: style[0] || "longterm", // take primary selection
+        timeHorizon: horizon,
+        style, // allow multiple styles
         experience,
+        experienceDetails: expDetails,
         goal,
+        sectors,
       };
-      const res = await fetch("/api/screener/suggest", {
+      const res = await fetch("/api/ai/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("Request failed");
       const data = await res.json();
-      setResults(data.suggestions || []);
+      setResults(Array.isArray(data.suggestions) ? data.suggestions : []);
     } catch (e: any) {
       setError(e?.message || "Failed to fetch recommendations");
     } finally {
@@ -72,7 +81,7 @@ export default function UserProfileDashboard() {
     <main className="min-h-screen flex flex-col items-center py-10 bg-background">
       <div className="w-full max-w-laptop px-4">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold mb-2 text-charcoal">Your Profile</h1>
+          <h1 className="text-3xl font-bold mb-2 text-charcoal">JUST BUY YOUR STOCK BRO</h1>
           <p className="text-black mb-4 text-sm">
             Set your experience, trading style, risk tolerance, and investment goal for personalized recommendations.
           </p>
@@ -108,6 +117,52 @@ export default function UserProfileDashboard() {
               </button>
             ))}
           </div>
+        </div>
+        {/* Time Horizon & Sectors */}
+        <div className="card mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div className="font-semibold mb-2 text-charcoal">Investment Horizon</div>
+              <select
+                className="w-full border border-gray-300 bg-white text-charcoal px-3 py-2 rounded-none"
+                value={horizon}
+                onChange={(e) => setHorizon(e.target.value)}
+              >
+                <option value="3M">3 Months</option>
+                <option value="6M">6 Months</option>
+                <option value="1Y">1 Year</option>
+                <option value="3Y">3 Years</option>
+                <option value="5Y">5+ Years</option>
+              </select>
+            </div>
+            <div>
+              <div className="font-semibold mb-2 text-charcoal">Preferred Sectors</div>
+              <div className="flex flex-wrap gap-2">
+                {["Tech","Healthcare","Energy","Finance","Consumer","Industrial"].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`px-3 py-1 border rounded-none text-sm ${sectors.includes(s) ? "bg-foreground text-white border-gray-900" : "bg-white text-charcoal border-gray-300 hover:border-gray-500"}`}
+                    onClick={() => toggleSector(s)}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Experience details textbox */}
+        <div className="card mb-6">
+          <div className="font-semibold mb-2 text-charcoal">Tell us about your experience</div>
+          <textarea
+            value={expDetails}
+            onChange={(e) => setExpDetails(e.target.value.slice(0, 500))}
+            placeholder="Share your trading experience, constraints, sectors you like/avoid, position sizes, and anything else."
+            className="w-full border border-gray-300 bg-white text-charcoal p-3 min-h-[96px] rounded-none"
+            maxLength={500}
+          />
+          <div className="text-xs text-gray-500 mt-1 text-right">{expDetails.length}/500</div>
         </div>
         {/* Risk Tolerance Slider */}
         <div className="card mb-6 text-center">
