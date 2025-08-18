@@ -28,6 +28,7 @@ export default function UserProfileDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<any[]>([]);
+  const [other, setOther] = useState<any[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [filter, setFilter] = useState<"all" | "equity" | "crypto" | "forex">("all");
 
@@ -64,7 +65,42 @@ export default function UserProfileDashboard() {
       });
       if (!res.ok) throw new Error("Request failed");
       const data = await res.json();
-      setResults(Array.isArray(data.suggestions) ? data.suggestions : []);
+      const recs = Array.isArray(data.suggestions) ? data.suggestions : [];
+      setResults(recs);
+      // load other baseline quotes excluding recommended symbols
+      try {
+        const baseline = [
+          "AAPL","MSFT","NVDA","AMZN","GOOGL","META","TSLA","JPM","XOM","JNJ",
+          "V","PG","HD","MA","UNH","LLY","PEP","AVGO","BAC","KO"
+        ];
+        const exclude = new Set(recs.map((r: any) => String(r.symbol).toUpperCase()));
+        const universe = baseline.filter((s) => !exclude.has(s));
+        if (universe.length) {
+          const res2 = await fetch(`/api/market/quote?symbols=${encodeURIComponent(universe.join(","))}`, { cache: "no-store" });
+          const j2 = await res2.json();
+          const items = Array.isArray(j2.items) ? j2.items : [];
+          const mapped = items.map((q: any) => ({
+            type: "equity",
+            symbol: q.symbol,
+            name: q.shortName || q.longName || q.symbol,
+            price: q.price,
+            change1D: typeof q.changePercent === 'number' ? `${q.changePercent.toFixed(2)}%` : "—",
+            change1W: "—",
+            change1M: "—",
+            rating: undefined,
+            pe: null,
+            eps: null,
+            dy: null,
+            reasoning: "",
+            signal: "Hold",
+          }));
+          setOther(mapped);
+        } else {
+          setOther([]);
+        }
+      } catch {
+        setOther([]);
+      }
     } catch (e: any) {
       setError(e?.message || "Failed to fetch recommendations");
     } finally {
@@ -300,6 +336,34 @@ export default function UserProfileDashboard() {
                     >
                       {expanded[rec.symbol] ? "Hide details" : "Show details"}
                     </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Other Stocks */}
+        {other.length > 0 && (
+          <section className="mt-10">
+            <h2 className="text-lg font-semibold mb-3 text-charcoal text-center">Other Stocks</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {other.map((rec) => (
+                <div key={`other-${rec.symbol}`} className="card text-center">
+                  <div className="mb-1 font-bold text-charcoal">
+                    {rec.symbol} <span className="text-sm font-normal text-black">{rec.name}</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="font-semibold">${rec.price}</span>
+                    <span className={`ml-2 ${String(rec.change1D).startsWith("-") ? "text-red-600" : "text-green-600"}`}>{rec.change1D}</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-center gap-2 text-xs text-black">
+                    <span>24h {rec.change1D}</span>
+                    <span>· 1W {rec.change1W}</span>
+                    <span>· 1M {rec.change1M}</span>
+                  </div>
+                  <div className="mt-3">
+                    <a className="text-sm underline" href={`/symbol/${encodeURIComponent(rec.symbol)}`}>Open</a>
                   </div>
                 </div>
               ))}
