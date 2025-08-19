@@ -49,6 +49,21 @@ export default function UserProfileDashboard() {
     setSectors((prev) => (prev.includes(val) ? prev.filter((s) => s !== val) : [...prev, val]));
   };
 
+  // Isolated controller to comply with Next.js Suspense requirement for useSearchParams
+  function IntroController({ setShow }:{ setShow: (v:boolean)=>void }) {
+    const params = useSearchParams();
+    useEffect(() => {
+      try {
+        const w = typeof window !== 'undefined' ? window : undefined;
+        const flag = w ? w.localStorage.getItem("jbysb_intro_dismissed") : "1";
+        const force = params?.get("intro") === "1";
+        setShow(force ? true : flag !== "1");
+      } catch {}
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [params]);
+    return null;
+  }
+
   // Baseline universe (same spirit as MarketBar: popular equities + crypto + a few forex)
   const BASE_UNIVERSE: string[] = [
     // Mega/large-cap equities
@@ -138,19 +153,10 @@ export default function UserProfileDashboard() {
   };
 
   // Load initial universe on page load (before any AI call)
-  const params = useSearchParams();
   useEffect(() => {
     loadBaseline([]);
-    // show intro overlay on first visit only
-    try {
-      const w = typeof window !== 'undefined' ? window : undefined;
-      const flag = w ? w.localStorage.getItem("jbysb_intro_dismissed") : "1";
-      // Force open if ?intro=1 present
-      const force = params?.get("intro") === "1";
-      setShowIntro(force ? true : flag !== "1");
-    } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params]);
+  }, []);
 
   const dismissIntro = () => {
     try { window.localStorage.setItem("jbysb_intro_dismissed", "1"); } catch {}
@@ -198,6 +204,7 @@ export default function UserProfileDashboard() {
     <Suspense fallback={null}>
     <main className="min-h-screen flex flex-col items-center py-10 bg-background">
       <div className="w-full max-w-laptop px-4">
+        <Suspense fallback={null}><IntroController setShow={setShowIntro} /></Suspense>
         {showIntro && (
           <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/40">
             <div className="mt-20 w-full max-w-2xl bg-white border border-gray-300 shadow-2xl p-5">
