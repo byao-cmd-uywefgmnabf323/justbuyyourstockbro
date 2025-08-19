@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import PriceChart from "@/components/PriceChart";
@@ -29,6 +29,11 @@ export default function SymbolDetailPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiBullets, setAiBullets] = useState<string[]>([]);
   const [aiError, setAiError] = useState<string | null>(null);
+  // Smart Report state
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [report, setReport] = useState<string>("");
+  const printRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const loadQuote = async () => {
@@ -162,6 +167,84 @@ export default function SymbolDetailPage() {
     return { price, min52w: min, max52w: max, s20, s50, s200, e12, e26, rsi, macd: m, macdSignal: sig, macdHist: hist };
   }, [closes, latestIdx, macd, rsiArr]);
 
+  // Build a default local report in case AI endpoint is unavailable
+  const buildLocalReport = (): string => {
+    const lines: string[] = [];
+    lines.push(`# ${quote?.shortName || symbol} — Smart Report`);
+    lines.push("");
+    lines.push(`Symbol: ${symbol}`);
+    lines.push(`Currency: ${quote?.currency || "USD"}`);
+    lines.push("");
+    lines.push(`Price: $${fmt(stats.price)}`);
+    lines.push(`Change: ${fmt(quote?.change)} (${fmt(quote?.changePercent)}%)`);
+    lines.push(`52W Range: $${fmt(stats.min52w)} – $${fmt(stats.max52w)}`);
+    lines.push(`SMA20/50/200: ${fmt(stats.s20)} / ${fmt(stats.s50)} / ${fmt(stats.s200)}`);
+    lines.push(`EMA12/26: ${fmt(stats.e12)} / ${fmt(stats.e26)}`);
+    lines.push(`RSI(14): ${fmt(stats.rsi)}`);
+    lines.push(`MACD / Signal / Hist: ${fmt(stats.macd)} / ${fmt(stats.macdSignal)} / ${fmt(stats.macdHist)}`);
+    lines.push("");
+    if (aiBullets.length) {
+      lines.push(`AI Highlights:`);
+      for (const b of aiBullets) lines.push(`- ${b}`);
+      lines.push("");
+    }
+    lines.push(`Summary Recommendation:`);
+    lines.push(`- Suitability depends on your risk, horizon, and sector preference.`);
+    lines.push(`- Consider trend vs. mean-reversion signals from MAs, RSI, and MACD.`);
+    lines.push(`- Always cross-check fundamentals and news catalysts.`);
+    return lines.join("\n");
+  };
+
+  const generateReport = async () => {
+    try {
+      setReportLoading(true);
+      setReportError(null);
+      // Try backend AI endpoint first (optional)
+      const payload = {
+        symbol,
+        context: { stats, aiBullets },
+      };
+      let text = "";
+      try {
+        const res = await fetch('/api/ai/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          const j = await res.json();
+          text = typeof j?.report === 'string' ? j.report : '';
+        }
+      } catch {
+        // ignore network errors; fallback below
+      }
+      if (!text) text = buildLocalReport();
+      setReport(text);
+      // Focus printable area
+      setTimeout(() => printRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    } catch (e: any) {
+      setReportError(e?.message || 'Failed to generate report');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const printReport = () => {
+    // Use a simple print flow; users can save as PDF
+    window.print();
+  };
+
+  const openInGoogleDocs = async () => {
+    try {
+      if (report) {
+        await navigator.clipboard.writeText(report);
+      } else {
+        await navigator.clipboard.writeText(buildLocalReport());
+      }
+    } catch {}
+    window.open('https://docs.new', '_blank');
+  };
+
   return (
     <main className="min-h-screen py-8 bg-background">
       <div className="w-full max-w-laptop mx-auto px-4">
@@ -205,6 +288,27 @@ export default function SymbolDetailPage() {
                     <li key={i}>{b}</li>
                   ))}
                 </ul>
+              )}
+            </div>
+            {/* Smart Report */}
+            <div className="mt-6">
+              <h3 className="font-semibold text-charcoal mb-2">Smart Report</h3>
+              <div className="flex gap-2">
+                <button onClick={generateReport} disabled={reportLoading} className="px-3 py-1.5 border border-gray-900 bg-black text-white text-sm rounded-none">
+                  {reportLoading ? 'Generating…' : 'Generate Report'}
+                </button>
+                <button onClick={printReport} disabled={!report} className="px-3 py-1.5 border border-gray-900 bg-white text-black text-sm rounded-none disabled:opacity-60">
+                  Download PDF
+                </button>
+                <button onClick={openInGoogleDocs} className="px-3 py-1.5 border border-gray-900 bg-white text-black text-sm rounded-none">
+                  Open in Google Docs
+                </button>
+              </div>
+              {reportError && <div className="mt-2 text-sm text-red-600">{reportError}</div>}
+              {report && (
+                <div ref={printRef} className="mt-3 whitespace-pre-wrap text-sm text-black bg-white border border-gray-300 p-3">
+                  {report}
+                </div>
               )}
             </div>
             <div className="mt-4">

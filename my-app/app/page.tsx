@@ -57,7 +57,7 @@ export default function UserProfileDashboard() {
         const w = typeof window !== 'undefined' ? window : undefined;
         const flag = w ? w.localStorage.getItem("jbysb_intro_dismissed") : "1";
         const force = params?.get("intro") === "1";
-        setShow(force ? true : flag !== "1");
+        if (force) setShow(true); else setShow(flag !== "1");
       } catch {}
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [params]);
@@ -159,7 +159,15 @@ export default function UserProfileDashboard() {
   }, []);
 
   const dismissIntro = () => {
-    try { window.localStorage.setItem("jbysb_intro_dismissed", "1"); } catch {}
+    try {
+      window.localStorage.setItem("jbysb_intro_dismissed", "1");
+      // Remove ?intro=1 from URL if present
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("intro")) {
+        url.searchParams.delete("intro");
+        window.history.replaceState({}, "", url.toString());
+      }
+    } catch {}
     setShowIntro(false);
   };
 
@@ -210,7 +218,6 @@ export default function UserProfileDashboard() {
             <div className="mt-20 w-full max-w-2xl bg-white border border-gray-300 shadow-2xl p-5">
               <div className="flex items-start justify-between">
                 <h2 className="text-xl font-bold text-black">Welcome to JustBuyYourStockBro</h2>
-                <button onClick={dismissIntro} className="px-2 py-1 text-sm border border-gray-300 bg-white text-black hover:bg-gray-100">Close</button>
               </div>
               <div className="mt-3 text-sm text-black space-y-2">
                 <p><span className="font-semibold">Mission:</span> help retail investors cut noise with personalized, explainable stock ideas and quick AI validation.</p>
@@ -354,7 +361,7 @@ export default function UserProfileDashboard() {
           <div className="mt-4 text-sm text-red-600">{error}</div>
         )}
 
-        {/* Controls: Other Stocks toggle and jump */}
+        {/* Controls: Other Stocks toggle */}
         <div className="mt-4 flex items-center justify-center gap-3">
           <button
             type="button"
@@ -363,16 +370,21 @@ export default function UserProfileDashboard() {
           >
             {showOther ? "Hide Other Stocks" : "Show Other Stocks"}
           </button>
-          <a href="#other-stocks" className="text-sm underline text-black">Jump to Other Stocks</a>
           <button
             type="button"
             onClick={() => loadBaseline(results.map((r: any) => String(r.symbol)))}
             className="px-3 py-2 border border-gray-900 bg-white text-black text-sm rounded-none"
             disabled={otherLoading}
           >
-            {otherLoading ? `Loading Other Stocks… (${otherLoadedCount}/${BASE_UNIVERSE.length})` : "Reload Other Stocks"}
+            Reload Other Stocks
           </button>
         </div>
+        {/* Subtle progress indicator under toggle */}
+        {otherLoading && (
+          <div className="mt-1 text-center text-xs text-black">
+            {`Loading Other Stocks… (${Math.round((otherLoadedCount / BASE_UNIVERSE.length) * 100)}%)`}
+          </div>
+        )}
 
         {/* Results */}
         {results.length > 0 && (
@@ -414,7 +426,7 @@ export default function UserProfileDashboard() {
                     </span>
                   </div>
                   <div className="text-sm">
-                    <span className="font-semibold">${rec.price}</span>
+                    <span className="font-semibold">{typeof rec.price === 'number' && isFinite(rec.price) ? `$${rec.price.toFixed(2)}` : '—'}</span>
                     <span className={`ml-2 ${String(rec.change1D).startsWith("-") ? "text-red-600" : "text-green-600"}`}>{rec.change1D}</span>
                   </div>
                   {/* Rating */}
@@ -485,7 +497,7 @@ export default function UserProfileDashboard() {
                     {rec.symbol} <span className="text-sm font-normal text-black">{rec.name}</span>
                   </div>
                   <div className="text-sm">
-                    <span className="font-semibold">${rec.price}</span>
+                    <span className="font-semibold">{typeof rec.price === 'number' && isFinite(rec.price) ? `$${rec.price.toFixed(2)}` : '—'}</span>
                     <span className={`ml-2 ${String(rec.change1D).startsWith("-") ? "text-red-600" : "text-green-600"}`}>{rec.change1D}</span>
                   </div>
                   <div className="mt-2 flex items-center justify-center gap-2 text-xs text-black">

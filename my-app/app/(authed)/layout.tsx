@@ -1,13 +1,12 @@
 import React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import "../styles/design-system.css";
 
 const navLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: "🏠" },
-  { href: "/watchlist", label: "Watchlist", icon: "👀" },
-  { href: "/backtest", label: "Backtest", icon: "📊" },
-  { href: "/settings", label: "Settings", icon: "⚙️" },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/watchlist", label: "Watchlist" },
+  { href: "/backtest", label: "Backtest" },
+  { href: "/settings", label: "Settings" },
 ];
 
 export default function AuthedLayout({ children }: { children: React.ReactNode }) {
@@ -21,7 +20,6 @@ export default function AuthedLayout({ children }: { children: React.ReactNode }
             {navLinks.map((link) => (
               <li key={link.href}>
                 <Link href={link.href} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-50 font-medium text-slate-700">
-                  <span>{link.icon}</span>
                   <span>{link.label}</span>
                 </Link>
               </li>

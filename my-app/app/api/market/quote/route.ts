@@ -3,6 +3,64 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 const YAHOO_QUOTE = "https://query1.finance.yahoo.com/v7/finance/quote";
+const STOOQ_JSON = (s: string) => `https://stooq.com/q/l/?s=${encodeURIComponent(s)}&f=sd2t2ohlcv&h&e=json`;
+const COINGECKO_SIMPLE = (ids: string[]) => `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(ids.join(","))}&vs_currencies=usd`;
+
+const mapCryptoId = (sym: string): string | null => {
+  const m: Record<string, string> = {
+    "BTC-USD": "bitcoin",
+    "ETH-USD": "ethereum",
+    "SOL-USD": "solana",
+    "DOGE-USD": "dogecoin",
+  };
+  return m[sym] || null;
+};
+
+async function fetchFromStooq(symbol: string) {
+  try {
+    const res = await fetch(STOOQ_JSON(symbol.toLowerCase()), { cache: "no-store" });
+    if (!res.ok) return null;
+    const j = await res.json();
+    const arr = j?.data || j?.symbols || j?.["Stock" ] || j?.["data"] || [];
+    const row = Array.isArray(arr) ? arr[0] : null;
+    const c = Number(row?.close);
+    if (!isFinite(c)) return null;
+    const pc = Number(row?.previous_close ?? row?.prv ?? NaN);
+    const change = isFinite(pc) ? c - pc : NaN;
+    const changePercent = isFinite(pc) && pc !== 0 ? (change / pc) * 100 : NaN;
+    return {
+      symbol,
+      shortName: symbol,
+      price: c,
+      change: isFinite(change) ? change : undefined,
+      changePercent: isFinite(changePercent) ? changePercent : undefined,
+      currency: "USD",
+    };
+  } catch { return null; }
+}
+
+async function fetchFromCoinGecko(symbols: string[]) {
+  const idMap: Record<string, string> = {};
+  for (const s of symbols) {
+    const id = mapCryptoId(s);
+    if (id) idMap[s] = id;
+  }
+  const ids = Object.values(idMap);
+  if (!ids.length) return [] as any[];
+  try {
+    const res = await fetch(COINGECKO_SIMPLE(ids), { cache: "no-store" });
+    if (!res.ok) return [] as any[];
+    const j = await res.json();
+    const out: any[] = [];
+    for (const [sym, id] of Object.entries(idMap)) {
+      const price = Number(j?.[id]?.usd);
+      if (isFinite(price)) {
+        out.push({ symbol: sym, shortName: sym, price, currency: "USD" });
+      }
+    }
+    return out;
+  } catch { return [] as any[]; }
+}
 
 export async function GET(req: Request) {
   try {
@@ -121,6 +179,26 @@ export async function GET(req: Request) {
           }
           items = perItems;
         }
+        // Secondary fallback: for any symbols still missing, try Stooq (equities) and CoinGecko (crypto)
+        const got = new Set(items.map((x: any) => x.symbol));
+        const missing = batch.filter((s) => !got.has(s));
+        if (missing.length) {
+          const cryptoSyms = missing.filter((s) => mapCryptoId(s));
+          const eqSyms = missing.filter((s) => !mapCryptoId(s));
+          const extra: any[] = [];
+          // CoinGecko in one request
+          if (cryptoSyms.length) {
+            const cg = await fetchFromCoinGecko(cryptoSyms);
+            extra.push(...cg);
+          }
+          // Stooq per symbol (keep light rate)
+          for (const s of eqSyms) {
+            await new Promise((r) => setTimeout(r, 120));
+            const st = await fetchFromStooq(s);
+            if (st) extra.push(st);
+          }
+          items.push(...extra);
+        }
         allItems.push(...items);
       } catch (err: any) {
         errors.push(err?.message || "batch failed");
@@ -128,6 +206,17 @@ export async function GET(req: Request) {
     }
 
     if (allItems.length === 0) {
+      // Final fallback over all symbols
+      const cryptoSyms = symbols.filter((s) => mapCryptoId(s));
+      const eqSyms = symbols.filter((s) => !mapCryptoId(s));
+      const out: any[] = [];
+      if (cryptoSyms.length) out.push(...(await fetchFromCoinGecko(cryptoSyms)));
+      for (const s of eqSyms) {
+        await new Promise((r) => setTimeout(r, 120));
+        const st = await fetchFromStooq(s);
+        if (st) out.push(st);
+      }
+      if (out.length) return NextResponse.json({ items: out });
       // Soft-fail: return 200 with empty items and an error message for clients to handle gracefully
       return NextResponse.json({ items: [], error: errors.join("; ") || "failed" });
     }

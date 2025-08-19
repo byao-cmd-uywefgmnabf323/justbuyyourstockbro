@@ -84,7 +84,7 @@ export default function AIAdvisor() {
       <div className="flex items-center justify-between mb-2">
         <h2 className="font-semibold text-black">AI Advisor</h2>
         <button
-          className="text-sm text-white bg-charcoal hover:bg-charcoal/90 rounded-md px-3 py-1"
+          className="text-sm text-black bg-white border border-gray-900 hover:bg-black/5 rounded-md px-3 py-1"
           disabled={loading}
           onClick={onGetAdvice}
         >

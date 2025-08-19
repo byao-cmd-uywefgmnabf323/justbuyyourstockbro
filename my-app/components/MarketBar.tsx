@@ -120,7 +120,7 @@ export default function MarketBar() {
     return (
       <Link href={`/symbol/${encodeURIComponent(i.symbol)}`} key={`${i.symbol}-${idx}`} className="flex items-center gap-1 px-3 hover:bg-white/5">
         <span className="font-semibold">{i.shortName || i.symbol}</span>
-        <span className="text-gray-200">${fmt(i.price)}</span>
+        <span className="text-gray-200">{typeof i.price === 'number' && isFinite(i.price) ? `$${i.price.toFixed(2)}` : '—'}</span>
         <span className={up ? "text-green-400" : "text-red-400"}>
           {typeof i.change === 'number' && isFinite(i.change) ? (up ? "+" : "") + fmt(i.change) : "—"} ({typeof i.changePercent === 'number' && isFinite(i.changePercent) ? fmt(i.changePercent) : "—"}%)
         </span>
