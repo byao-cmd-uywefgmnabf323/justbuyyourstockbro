@@ -16,15 +16,30 @@ const mapCryptoId = (sym: string): string | null => {
   return m[sym] || null;
 };
 
+// Stooq uses different symbols. For most US equities, it's lowercase with .us suffix (e.g., aapl.us)
+// Skip non-equity types (crypto, forex, indices) here and return null so other fallbacks can handle them.
+const mapStooqSymbol = (sym: string): string | null => {
+  const s = String(sym).trim();
+  // Skip crypto and forex formats
+  if (s.includes("-") || s.includes("=")) return null;
+  // Skip common index caret symbols
+  if (s.startsWith("^")) return null;
+  // Heuristic: treat remaining as US equity
+  return `${s.toLowerCase()}.us`;
+};
+
 async function fetchFromStooq(symbol: string) {
   try {
-    const res = await fetch(STOOQ_JSON(symbol.toLowerCase()), { cache: "no-store" });
+    const mapped = mapStooqSymbol(symbol);
+    if (!mapped) return null;
+    const res = await fetch(STOOQ_JSON(mapped), { cache: "no-store" });
     if (!res.ok) return null;
     const j = await res.json();
     const arr = j?.data || j?.symbols || j?.["Stock" ] || j?.["data"] || [];
     const row = Array.isArray(arr) ? arr[0] : null;
     const c = Number(row?.close);
     if (!isFinite(c)) return null;
+    // Stooq lightweight JSON often lacks previous close; leave change fields undefined if not available
     const pc = Number(row?.previous_close ?? row?.prv ?? NaN);
     const change = isFinite(pc) ? c - pc : NaN;
     const changePercent = isFinite(pc) && pc !== 0 ? (change / pc) * 100 : NaN;
