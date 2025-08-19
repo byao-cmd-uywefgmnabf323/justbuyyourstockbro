@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import PriceChart from "@/components/PriceChart";
 
 const experienceLevels = [
@@ -29,6 +29,8 @@ export default function UserProfileDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<any[]>([]);
   const [other, setOther] = useState<any[]>([]);
+  const [showOther, setShowOther] = useState(true);
+  const [showIntro, setShowIntro] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [filter, setFilter] = useState<"all" | "equity" | "crypto" | "forex">("all");
 
@@ -42,6 +44,81 @@ export default function UserProfileDashboard() {
 
   const toggleSector = (val: string) => {
     setSectors((prev) => (prev.includes(val) ? prev.filter((s) => s !== val) : [...prev, val]));
+  };
+
+  // Baseline universe (same spirit as MarketBar: popular equities + crypto)
+  const BASE_UNIVERSE: string[] = [
+    // Mega/large-cap equities
+    "AAPL","MSFT","NVDA","TSLA","AMZN","GOOGL","META","AMD","NFLX","JPM",
+    "V","MA","BAC","XOM","CVX","JNJ","PEP","KO","DIS","NKE",
+    "HD","PG","UNH","LLY","ABBV","AVGO","COST","WMT","ORCL","CRM",
+    "INTC","CSCO","ADBE","TXN","QCOM","SHOP","PYPL","SQ","UBER","ABNB",
+    // Crypto (Yahoo suffix)
+    "BTC-USD","ETH-USD","SOL-USD","DOGE-USD","ADA-USD","BNB-USD",
+  ];
+
+  // Load baseline quotes and optionally exclude recommended symbols
+  const loadBaseline = async (excludeSyms: string[]) => {
+    try {
+      const exclude = new Set(excludeSyms.map((s) => s.toUpperCase()));
+      const universe = BASE_UNIVERSE.filter((s) => !exclude.has(s));
+      if (!universe.length) {
+        setOther([]);
+        return;
+      }
+      // Fetch per symbol sequentially (or in tiny batches) to avoid API limits
+      const results: Record<string, any> = {};
+      for (const sym of universe) {
+        try {
+          const res = await fetch(`/api/market/quote?symbols=${encodeURIComponent(sym)}&_=${Date.now()}`, { cache: "no-store" });
+          const j = await res.json();
+          if (Array.isArray(j.items)) {
+            for (const q of j.items) {
+              results[q.symbol] = {
+                type: String(q.symbol).endsWith("-USD") ? "crypto" : "equity",
+                symbol: q.symbol,
+                name: q.shortName || q.longName || q.symbol,
+                price: q.price,
+                change1D: typeof q.changePercent === 'number' ? `${q.changePercent.toFixed(2)}%` : "—",
+                change1W: "—",
+                change1M: "—",
+                rating: undefined,
+                pe: null,
+                eps: null,
+                dy: null,
+                reasoning: "",
+                signal: "Hold",
+              };
+            }
+          }
+        } catch (e) {
+          // ignore a single failure and continue
+        }
+        // throttle lightly
+        await new Promise((r) => setTimeout(r, 80));
+      }
+      // Preserve intended order
+      const ordered = universe.map((s) => results[s]).filter(Boolean);
+      setOther(ordered);
+    } catch {
+      setOther([]);
+    }
+  };
+
+  // Load initial universe on page load (before any AI call)
+  useEffect(() => {
+    loadBaseline([]);
+    // show intro overlay on first visit only
+    try {
+      const flag = typeof window !== 'undefined' ? window.localStorage.getItem("jbysb_intro_dismissed") : "1";
+      setShowIntro(flag !== "1");
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const dismissIntro = () => {
+    try { window.localStorage.setItem("jbysb_intro_dismissed", "1"); } catch {}
+    setShowIntro(false);
   };
 
   const generate = async () => {
@@ -67,40 +144,8 @@ export default function UserProfileDashboard() {
       const data = await res.json();
       const recs = Array.isArray(data.suggestions) ? data.suggestions : [];
       setResults(recs);
-      // load other baseline quotes excluding recommended symbols
-      try {
-        const baseline = [
-          "AAPL","MSFT","NVDA","AMZN","GOOGL","META","TSLA","JPM","XOM","JNJ",
-          "V","PG","HD","MA","UNH","LLY","PEP","AVGO","BAC","KO"
-        ];
-        const exclude = new Set(recs.map((r: any) => String(r.symbol).toUpperCase()));
-        const universe = baseline.filter((s) => !exclude.has(s));
-        if (universe.length) {
-          const res2 = await fetch(`/api/market/quote?symbols=${encodeURIComponent(universe.join(","))}`, { cache: "no-store" });
-          const j2 = await res2.json();
-          const items = Array.isArray(j2.items) ? j2.items : [];
-          const mapped = items.map((q: any) => ({
-            type: "equity",
-            symbol: q.symbol,
-            name: q.shortName || q.longName || q.symbol,
-            price: q.price,
-            change1D: typeof q.changePercent === 'number' ? `${q.changePercent.toFixed(2)}%` : "—",
-            change1W: "—",
-            change1M: "—",
-            rating: undefined,
-            pe: null,
-            eps: null,
-            dy: null,
-            reasoning: "",
-            signal: "Hold",
-          }));
-          setOther(mapped);
-        } else {
-          setOther([]);
-        }
-      } catch {
-        setOther([]);
-      }
+      // refresh baseline excluding recommended symbols (non-blocking)
+      loadBaseline(recs.map((r: any) => String(r.symbol)));
     } catch (e: any) {
       setError(e?.message || "Failed to fetch recommendations");
     } finally {
@@ -116,6 +161,28 @@ export default function UserProfileDashboard() {
   return (
     <main className="min-h-screen flex flex-col items-center py-10 bg-background">
       <div className="w-full max-w-laptop px-4">
+        {showIntro && (
+          <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/40">
+            <div className="mt-20 w-full max-w-2xl bg-white border border-gray-300 shadow-2xl p-5">
+              <div className="flex items-start justify-between">
+                <h2 className="text-xl font-bold text-black">Welcome to JustBuyYourStockBro</h2>
+                <button onClick={dismissIntro} className="px-2 py-1 text-sm border border-gray-300 bg-white text-black hover:bg-gray-100">Close</button>
+              </div>
+              <div className="mt-3 text-sm text-black space-y-2">
+                <p><span className="font-semibold">Mission:</span> help retail investors cut noise with personalized, explainable stock ideas and quick AI validation.</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><span className="font-semibold">Personalized Picks:</span> survey your style, risk, horizon, sectors + context to tailor recommendations.</li>
+                  <li><span className="font-semibold">Explainable Reasons:</span> symbol pages include concise AI bullets under Key Stats.</li>
+                  <li><span className="font-semibold">Other Stocks:</span> keep a broad universe visible for discovery, not just AI’s top picks.</li>
+                  <li><span className="font-semibold">AI Backtesting:</span> try strategies on <a className="underline" href="/backtest">/backtest</a> for quick metrics (CAGR, Sharpe, drawdown).</li>
+                </ul>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button onClick={dismissIntro} className="px-4 py-2 border border-gray-900 bg-black text-white rounded-none">Got it</button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold mb-2 text-charcoal">JUST BUY YOUR STOCK BRO</h1>
           <p className="text-black mb-4 text-sm">
@@ -243,6 +310,18 @@ export default function UserProfileDashboard() {
           <div className="mt-4 text-sm text-red-600">{error}</div>
         )}
 
+        {/* Controls: Other Stocks toggle and jump */}
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowOther((v) => !v)}
+            className="px-3 py-2 border border-gray-900 bg-black text-white text-sm rounded-none"
+          >
+            {showOther ? "Hide Other Stocks" : "Show Other Stocks"}
+          </button>
+          <a href="#other-stocks" className="text-sm underline text-black">Jump to Other Stocks</a>
+        </div>
+
         {/* Results */}
         {results.length > 0 && (
           <section className="mt-6">
@@ -344,8 +423,8 @@ export default function UserProfileDashboard() {
         )}
 
         {/* Other Stocks */}
-        {other.length > 0 && (
-          <section className="mt-10">
+        {showOther && other.length > 0 && (
+          <section id="other-stocks" className="mt-10">
             <h2 className="text-lg font-semibold mb-3 text-charcoal text-center">Other Stocks</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               {other.map((rec) => (
