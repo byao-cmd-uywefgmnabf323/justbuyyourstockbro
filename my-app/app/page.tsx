@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import PriceChart from "@/components/PriceChart";
 
 const experienceLevels = [
@@ -48,7 +49,7 @@ export default function UserProfileDashboard() {
     setSectors((prev) => (prev.includes(val) ? prev.filter((s) => s !== val) : [...prev, val]));
   };
 
-  // Baseline universe (same spirit as MarketBar: popular equities + crypto)
+  // Baseline universe (same spirit as MarketBar: popular equities + crypto + a few forex)
   const BASE_UNIVERSE: string[] = [
     // Mega/large-cap equities
     "AAPL","MSFT","NVDA","TSLA","AMZN","GOOGL","META","AMD","NFLX","JPM",
@@ -57,6 +58,8 @@ export default function UserProfileDashboard() {
     "INTC","CSCO","ADBE","TXN","QCOM","SHOP","PYPL","SQ","UBER","ABNB",
     // Crypto (Yahoo suffix)
     "BTC-USD","ETH-USD","SOL-USD","DOGE-USD","ADA-USD","BNB-USD",
+    // Forex (Yahoo uses =X)
+    "EURUSD=X","USDJPY=X","GBPUSD=X","USDCHF=X",
   ];
 
   // Load baseline quotes and optionally exclude recommended symbols
@@ -68,6 +71,23 @@ export default function UserProfileDashboard() {
         setOther([]);
         return;
       }
+      // Seed placeholders so the UI shows immediately
+      const placeholders = universe.map((sym) => ({
+        type: sym.endsWith("-USD") ? "crypto" : sym.endsWith("=X") ? "forex" : "equity",
+        symbol: sym,
+        name: sym,
+        price: "—",
+        change1D: "—",
+        change1W: "—",
+        change1M: "—",
+        rating: undefined,
+        pe: null,
+        eps: null,
+        dy: null,
+        reasoning: "",
+        signal: "Hold",
+      }));
+      setOther(placeholders);
       setOtherLoading(true);
       setOtherLoadedCount(0);
       const results: Record<string, any> = {};
@@ -84,7 +104,7 @@ export default function UserProfileDashboard() {
             if (Array.isArray(j.items)) {
               for (const q of j.items) {
                 results[q.symbol] = {
-                  type: String(q.symbol).endsWith("-USD") ? "crypto" : "equity",
+                  type: String(q.symbol).endsWith("-USD") ? "crypto" : String(q.symbol).endsWith("=X") ? "forex" : "equity",
                   symbol: q.symbol,
                   name: q.shortName || q.longName || q.symbol,
                   price: q.price,
@@ -102,10 +122,13 @@ export default function UserProfileDashboard() {
             }
           } catch {}
           setOtherLoadedCount((c) => c + 1);
+          // Light incremental UI update (optional, cheap)
+          const partial = universe.map((s) => results[s] || placeholders.find(p => p.symbol === s));
+          setOther(partial.filter(Boolean) as any[]);
         }
       };
       await Promise.all(Array.from({ length: Math.min(concurrency, universe.length) }, () => worker()));
-      const ordered = universe.map((s) => results[s]).filter(Boolean);
+      const ordered = universe.map((s) => results[s] || placeholders.find(p => p.symbol === s)).filter(Boolean);
       setOther(ordered);
     } catch {
       setOther([]);
@@ -115,6 +138,7 @@ export default function UserProfileDashboard() {
   };
 
   // Load initial universe on page load (before any AI call)
+  const params = useSearchParams();
   useEffect(() => {
     loadBaseline([]);
     // show intro overlay on first visit only
@@ -122,12 +146,11 @@ export default function UserProfileDashboard() {
       const w = typeof window !== 'undefined' ? window : undefined;
       const flag = w ? w.localStorage.getItem("jbysb_intro_dismissed") : "1";
       // Force open if ?intro=1 present
-      const urlForce = w ? new URL(w.location.href) : null;
-      const force = urlForce?.searchParams.get("intro") === "1";
+      const force = params?.get("intro") === "1";
       setShowIntro(force ? true : flag !== "1");
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [params]);
 
   const dismissIntro = () => {
     try { window.localStorage.setItem("jbysb_intro_dismissed", "1"); } catch {}
