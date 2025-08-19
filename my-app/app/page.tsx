@@ -91,7 +91,7 @@ export default function UserProfileDashboard() {
         type: sym.endsWith("-USD") ? "crypto" : sym.endsWith("=X") ? "forex" : "equity",
         symbol: sym,
         name: sym,
-        price: "—",
+        price: null,
         change1D: "—",
         change1W: "—",
         change1M: "—",
@@ -150,6 +150,8 @@ export default function UserProfileDashboard() {
               }
             } catch {}
           }
+          // Debug (temporary): log resolved item
+          try { if (results[sym]) console.debug('resolved', sym, 'price=', results[sym].price); } catch {}
           setOtherLoadedCount((c) => c + 1);
           // Light incremental UI update (optional, cheap)
           const partial = universe.map((s) => results[s] || placeholders.find(p => p.symbol === s));
@@ -440,7 +442,7 @@ export default function UserProfileDashboard() {
                     </span>
                   </div>
                   <div className="text-sm">
-                    <span className="font-semibold">{typeof rec.price === 'number' && isFinite(rec.price) ? `$${rec.price.toFixed(2)}` : '—'}</span>
+                    <span className="font-semibold">{(() => { const pv = Number((rec as any).price); return isFinite(pv) ? `$${pv.toFixed(2)}` : '—'; })()}</span>
                     <span className={`ml-2 ${String(rec.change1D).startsWith("-") ? "text-red-600" : "text-green-600"}`}>{rec.change1D}</span>
                   </div>
                   {/* Rating */}
@@ -511,7 +513,7 @@ export default function UserProfileDashboard() {
                     {rec.symbol} <span className="text-sm font-normal text-black">{rec.name}</span>
                   </div>
                   <div className="text-sm">
-                    <span className="font-semibold">{typeof rec.price === 'number' && isFinite(rec.price) ? `$${rec.price.toFixed(2)}` : '—'}</span>
+                    <span className="font-semibold">{(() => { const pv = Number((rec as any).price); return Number.isFinite(pv) ? `$${pv.toFixed(2)}` : '—'; })()}</span>
                     <span className={`ml-2 ${String(rec.change1D).startsWith("-") ? "text-red-600" : "text-green-600"}`}>{rec.change1D}</span>
                   </div>
                   <div className="mt-2 flex items-center justify-center gap-2 text-xs text-black">

@@ -231,6 +231,29 @@ export async function GET(req: Request) {
         const st = await fetchFromStooq(s);
         if (st) out.push(st);
       }
+      // If still missing, use our own history endpoint to derive the last close (charts already work)
+      try {
+        const origin = new URL(req.url).origin;
+        const have = new Set(out.map((x: any) => x.symbol));
+        const missing = symbols.filter((s) => !have.has(s));
+        for (const s of missing) {
+          try {
+            // slight pacing
+            await new Promise((r) => setTimeout(r, 100));
+            const hres = await fetch(`${origin}/api/market/history?symbol=${encodeURIComponent(s)}&range=5d&interval=1d&_=${Date.now()}`, { cache: "no-store" });
+            if (!hres.ok) continue;
+            const hjson = await hres.json();
+            const candles = Array.isArray(hjson?.candles) ? hjson.candles : [];
+            if (candles.length) {
+              const last = candles[candles.length - 1];
+              const c = Number(last?.c);
+              if (isFinite(c)) {
+                out.push({ symbol: s, shortName: s, price: c, currency: "USD" });
+              }
+            }
+          } catch {}
+        }
+      } catch {}
       if (out.length) return NextResponse.json({ items: out });
       // Soft-fail: return 200 with empty items and an error message for clients to handle gracefully
       return NextResponse.json({ items: [], error: errors.join("; ") || "failed" });
