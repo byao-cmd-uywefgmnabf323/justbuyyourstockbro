@@ -140,6 +140,9 @@ export async function GET(req: Request) {
             change,
             changePercent,
             currency: q.currency,
+            trailingPE: typeof q.trailingPE === 'number' ? q.trailingPE : undefined,
+            epsTTM: typeof q.epsTrailingTwelveMonths === 'number' ? q.epsTrailingTwelveMonths : undefined,
+            dividendYield: typeof q.trailingAnnualDividendYield === 'number' ? q.trailingAnnualDividendYield * 100 : undefined,
           };
         });
         // Fallback: if this batch yielded no items, try per-symbol fetches
@@ -187,6 +190,9 @@ export async function GET(req: Request) {
                   change,
                   changePercent,
                   currency: q.currency,
+                  trailingPE: typeof q.trailingPE === 'number' ? q.trailingPE : undefined,
+                  epsTTM: typeof q.epsTrailingTwelveMonths === 'number' ? q.epsTrailingTwelveMonths : undefined,
+                  dividendYield: typeof q.trailingAnnualDividendYield === 'number' ? q.trailingAnnualDividendYield * 100 : undefined,
                 };
               });
               perItems.push(...itms);

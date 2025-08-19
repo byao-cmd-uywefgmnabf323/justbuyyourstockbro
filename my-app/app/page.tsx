@@ -121,15 +121,15 @@ export default function UserProfileDashboard() {
                 results[q.symbol] = {
                   type: String(q.symbol).endsWith("-USD") ? "crypto" : String(q.symbol).endsWith("=X") ? "forex" : "equity",
                   symbol: q.symbol,
-                  name: q.shortName || q.longName || q.symbol,
+                  name: q.longName || q.shortName || q.symbol,
                   price: Number.isFinite(q.price) ? q.price : null,
                   change1D: typeof q.changePercent === 'number' ? `${q.changePercent.toFixed(2)}%` : "—",
                   change1W: "—",
                   change1M: "—",
                   rating: undefined,
-                  pe: null,
-                  eps: null,
-                  dy: null,
+                  pe: typeof (q as any).trailingPE === 'number' && isFinite((q as any).trailingPE) ? (q as any).trailingPE : null,
+                  eps: typeof (q as any).epsTTM === 'number' && isFinite((q as any).epsTTM) ? (q as any).epsTTM : null,
+                  dy: typeof (q as any).dividendYield === 'number' && isFinite((q as any).dividendYield) ? (q as any).dividendYield : null,
                   reasoning: "",
                   signal: "Hold",
                 };
@@ -147,6 +147,27 @@ export default function UserProfileDashboard() {
                 if (last && typeof last.c === "number" && isFinite(last.c)) {
                   results[sym].price = last.c;
                 }
+              }
+            } catch {}
+          }
+          // If change % or 1W/1M missing, compute from history on the fly
+          if (results[sym] && (results[sym].change1D === "—" || results[sym].change1W === "—" || results[sym].change1M === "—")) {
+            try {
+              const hres2 = await fetch(`/api/market/history?symbol=${encodeURIComponent(sym)}&range=6mo&interval=1d&_=${Date.now()}`, { cache: "no-store" });
+              const hjson2 = await hres2.json();
+              const cs = Array.isArray(hjson2.candles) ? hjson2.candles : [];
+              if (cs.length >= 2) {
+                const last = Number(cs[cs.length - 1]?.c);
+                const d1 = Number(cs[cs.length - 2]?.c);
+                const w1 = Number(cs[cs.length - 6]?.c);
+                const m1 = Number(cs[cs.length - 22]?.c);
+                const pct = (a: number, b: number) => (isFinite(a) && isFinite(b) && b !== 0 ? ((a - b) / b) * 100 : NaN);
+                const p1 = pct(last, d1);
+                const p7 = pct(last, w1);
+                const p21 = pct(last, m1);
+                if (isFinite(p1)) results[sym].change1D = `${p1.toFixed(2)}%`;
+                if (isFinite(p7)) results[sym].change1W = `${p7.toFixed(2)}%`;
+                if (isFinite(p21)) results[sym].change1M = `${p21.toFixed(2)}%`;
               }
             } catch {}
           }
@@ -432,8 +453,8 @@ export default function UserProfileDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               {filtered.map((rec) => (
                 <div key={`${rec.type}-${rec.symbol}`} className="card text-center">
-                  <div className="mb-1 font-bold text-charcoal">
-                    {rec.symbol} <span className="text-sm font-normal text-black">{rec.name}</span>
+                  <div className="mb-1 text-charcoal">
+                    <span className="font-bold">{rec.symbol}</span>{' '}<span className="text-sm font-normal text-black">{rec.name}</span>
                   </div>
                   {/* type badge */}
                   <div className="mb-2 text-xs">
@@ -516,6 +537,14 @@ export default function UserProfileDashboard() {
                     <span className="font-semibold">{(() => { const pv = Number((rec as any).price); return Number.isFinite(pv) ? `$${pv.toFixed(2)}` : '—'; })()}</span>
                     <span className={`ml-2 ${String(rec.change1D).startsWith("-") ? "text-red-600" : "text-green-600"}`}>{rec.change1D}</span>
                   </div>
+                  {/* Indicators */}
+                  {(typeof rec.pe === 'number' || typeof rec.eps === 'number' || typeof rec.dy === 'number') && (
+                    <div className="mt-1 text-xs text-black">
+                      {typeof rec.pe === 'number' && isFinite(rec.pe) && <span>P/E {rec.pe.toFixed(1)}</span>}
+                      {typeof rec.eps === 'number' && isFinite(rec.eps) && <span className="ml-2">EPS {rec.eps.toFixed(2)}</span>}
+                      {typeof rec.dy === 'number' && isFinite(rec.dy) && <span className="ml-2">DY {rec.dy.toFixed(2)}%</span>}
+                    </div>
+                  )}
                   <div className="mt-2 flex items-center justify-center gap-2 text-xs text-black">
                     <span>24h {rec.change1D}</span>
                     <span>· 1W {rec.change1W}</span>
