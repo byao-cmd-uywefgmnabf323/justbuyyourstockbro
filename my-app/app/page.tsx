@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PriceChart from "@/components/PriceChart";
 
@@ -195,6 +195,7 @@ export default function UserProfileDashboard() {
   const filtered = results.filter((r) => (filter === "all" ? true : r.type === filter));
 
   return (
+    <Suspense fallback={null}>
     <main className="min-h-screen flex flex-col items-center py-10 bg-background">
       <div className="w-full max-w-laptop px-4">
         {showIntro && (
@@ -495,5 +496,6 @@ export default function UserProfileDashboard() {
         )}
       </div>
     </main>
+    </Suspense>
   );
 }
