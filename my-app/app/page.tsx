@@ -122,7 +122,7 @@ export default function UserProfileDashboard() {
                   type: String(q.symbol).endsWith("-USD") ? "crypto" : String(q.symbol).endsWith("=X") ? "forex" : "equity",
                   symbol: q.symbol,
                   name: q.shortName || q.longName || q.symbol,
-                  price: q.price,
+                  price: Number.isFinite(q.price) ? q.price : null,
                   change1D: typeof q.changePercent === 'number' ? `${q.changePercent.toFixed(2)}%` : "—",
                   change1W: "—",
                   change1M: "—",
@@ -136,6 +136,20 @@ export default function UserProfileDashboard() {
               }
             }
           } catch {}
+          // Fallback: if price still null, fetch last close via history
+          if (results[sym] && (results[sym].price === null || !isFinite(results[sym].price))) {
+            try {
+              const hres = await fetch(`/api/market/history?symbol=${encodeURIComponent(sym)}&range=5d&interval=1d&_=${Date.now()}`, { cache: "no-store" });
+              const hjson = await hres.json();
+              const candles = Array.isArray(hjson.candles) ? hjson.candles : [];
+              if (candles.length) {
+                const last = candles[candles.length - 1];
+                if (last && typeof last.c === "number" && isFinite(last.c)) {
+                  results[sym].price = last.c;
+                }
+              }
+            } catch {}
+          }
           setOtherLoadedCount((c) => c + 1);
           // Light incremental UI update (optional, cheap)
           const partial = universe.map((s) => results[s] || placeholders.find(p => p.symbol === s));
