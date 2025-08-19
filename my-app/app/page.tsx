@@ -31,6 +31,8 @@ export default function UserProfileDashboard() {
   const [other, setOther] = useState<any[]>([]);
   const [showOther, setShowOther] = useState(true);
   const [showIntro, setShowIntro] = useState(false);
+  const [otherLoading, setOtherLoading] = useState(false);
+  const [otherLoadedCount, setOtherLoadedCount] = useState(0);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [filter, setFilter] = useState<"all" | "equity" | "crypto" | "forex">("all");
 
@@ -66,42 +68,49 @@ export default function UserProfileDashboard() {
         setOther([]);
         return;
       }
-      // Fetch per symbol sequentially (or in tiny batches) to avoid API limits
+      setOtherLoading(true);
+      setOtherLoadedCount(0);
       const results: Record<string, any> = {};
-      for (const sym of universe) {
-        try {
-          const res = await fetch(`/api/market/quote?symbols=${encodeURIComponent(sym)}&_=${Date.now()}`, { cache: "no-store" });
-          const j = await res.json();
-          if (Array.isArray(j.items)) {
-            for (const q of j.items) {
-              results[q.symbol] = {
-                type: String(q.symbol).endsWith("-USD") ? "crypto" : "equity",
-                symbol: q.symbol,
-                name: q.shortName || q.longName || q.symbol,
-                price: q.price,
-                change1D: typeof q.changePercent === 'number' ? `${q.changePercent.toFixed(2)}%` : "—",
-                change1W: "—",
-                change1M: "—",
-                rating: undefined,
-                pe: null,
-                eps: null,
-                dy: null,
-                reasoning: "",
-                signal: "Hold",
-              };
+      // Concurrent fetch with small pool
+      const concurrency = 5;
+      let index = 0;
+      const worker = async () => {
+        while (index < universe.length) {
+          const i = index++;
+          const sym = universe[i];
+          try {
+            const res = await fetch(`/api/market/quote?symbols=${encodeURIComponent(sym)}&_=${Date.now()}`, { cache: "no-store" });
+            const j = await res.json();
+            if (Array.isArray(j.items)) {
+              for (const q of j.items) {
+                results[q.symbol] = {
+                  type: String(q.symbol).endsWith("-USD") ? "crypto" : "equity",
+                  symbol: q.symbol,
+                  name: q.shortName || q.longName || q.symbol,
+                  price: q.price,
+                  change1D: typeof q.changePercent === 'number' ? `${q.changePercent.toFixed(2)}%` : "—",
+                  change1W: "—",
+                  change1M: "—",
+                  rating: undefined,
+                  pe: null,
+                  eps: null,
+                  dy: null,
+                  reasoning: "",
+                  signal: "Hold",
+                };
+              }
             }
-          }
-        } catch (e) {
-          // ignore a single failure and continue
+          } catch {}
+          setOtherLoadedCount((c) => c + 1);
         }
-        // throttle lightly
-        await new Promise((r) => setTimeout(r, 80));
-      }
-      // Preserve intended order
+      };
+      await Promise.all(Array.from({ length: Math.min(concurrency, universe.length) }, () => worker()));
       const ordered = universe.map((s) => results[s]).filter(Boolean);
       setOther(ordered);
     } catch {
       setOther([]);
+    } finally {
+      setOtherLoading(false);
     }
   };
 
@@ -110,8 +119,12 @@ export default function UserProfileDashboard() {
     loadBaseline([]);
     // show intro overlay on first visit only
     try {
-      const flag = typeof window !== 'undefined' ? window.localStorage.getItem("jbysb_intro_dismissed") : "1";
-      setShowIntro(flag !== "1");
+      const w = typeof window !== 'undefined' ? window : undefined;
+      const flag = w ? w.localStorage.getItem("jbysb_intro_dismissed") : "1";
+      // Force open if ?intro=1 present
+      const urlForce = w ? new URL(w.location.href) : null;
+      const force = urlForce?.searchParams.get("intro") === "1";
+      setShowIntro(force ? true : flag !== "1");
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -320,6 +333,14 @@ export default function UserProfileDashboard() {
             {showOther ? "Hide Other Stocks" : "Show Other Stocks"}
           </button>
           <a href="#other-stocks" className="text-sm underline text-black">Jump to Other Stocks</a>
+          <button
+            type="button"
+            onClick={() => loadBaseline(results.map((r: any) => String(r.symbol)))}
+            className="px-3 py-2 border border-gray-900 bg-white text-black text-sm rounded-none"
+            disabled={otherLoading}
+          >
+            {otherLoading ? `Loading Other Stocks… (${otherLoadedCount}/${BASE_UNIVERSE.length})` : "Reload Other Stocks"}
+          </button>
         </div>
 
         {/* Results */}

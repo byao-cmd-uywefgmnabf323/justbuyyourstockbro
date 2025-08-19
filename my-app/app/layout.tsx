@@ -33,6 +33,12 @@ export default function RootLayout({
             <div className="font-semibold">JustBuyYourStockBro</div>
             <nav className="flex items-center gap-3">
               <Link
+                href="/?intro=1"
+                className="inline-flex items-center rounded-md border border-black px-3 py-1.5 text-sm font-medium text-black hover:bg-black/5"
+              >
+                Mission
+              </Link>
+              <Link
                 href="/dashboard"
                 className="inline-flex items-center rounded-md bg-black px-3 py-1.5 text-sm font-medium text-white hover:bg-black/90"
               >
