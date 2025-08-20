@@ -150,18 +150,90 @@ export default function RecommendPage() {
                     <div className="text-2xl font-bold text-black">{rec.name}</div>
                   </div>
                   <div className="flex flex-wrap gap-4 mb-2 text-xs">
-                    <span>Price: <b>{rec.price ? `$${rec.price.toFixed(2)}` : '—'}</b></span>
-                    <span className={typeof rec.change1D === 'string' && rec.change1D.startsWith('-') ? 'text-red-600' : 'text-green-600'}>1D: {rec.change1D || '—'}</span>
-                    <span>1W: {rec.change1W || '—'}</span>
-                    <span>1M: {rec.change1M || '—'}</span>
-                    <span>P/E: <b>{rec.pe ?? '—'}</b></span>
-                    <span>EPS: <b>{rec.eps ?? '—'}</b></span>
-                    <span>Div Yield: <b>{rec.dividendYield ?? rec.dy ?? '—'}</b></span>
-                    <span>Market Cap: <b>{rec.marketCap ?? '—'}</b></span>
-                    <span>Sector: <b>{rec.sector ?? '—'}</b></span>
-                    <span>Beta: <b>{rec.beta ?? '—'}</b></span>
-                    <span>52W High: <b>{rec.high52w ?? '—'}</b></span>
-                    <span>52W Low: <b>{rec.low52w ?? '—'}</b></span>
+                    <span>
+                      Price: <b>{rec.price ? `$${rec.price.toFixed(2)}` : '—'}</b>
+                    </span>
+                    <span className={typeof rec.change1D === 'string' && rec.change1D.startsWith('-') ? 'text-red-600' : 'text-green-600'}>
+                      1D: {rec.change1D || '—'}
+                    </span>
+                    <span>
+                      1W: {rec.change1W || '—'}
+                    </span>
+                    <span>
+                      1M: {rec.change1M || '—'}
+                    </span>
+                    <span>
+                      P/E <b>{rec.pe ?? '—'}</b>
+                      <InfoTooltip
+                        term="P/E Ratio"
+                        definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation."
+                        href="/academy/pe-ratio"
+                        className="align-middle ml-1"
+                      />
+                    </span>
+                    <span>
+                      EPS <b>{rec.eps ?? '—'}</b>
+                      <InfoTooltip
+                        term="EPS"
+                        definition="Earnings Per Share: a company’s profit divided by the number of shares."
+                        href="/academy/eps"
+                        className="align-middle ml-1"
+                      />
+                    </span>
+                    <span>
+                      Div Yield <b>{rec.dividendYield ?? rec.dy ?? '—'}</b>
+                      <InfoTooltip
+                        term="Dividend Yield"
+                        definition="Annual dividends as a percentage of the share price."
+                        href="/academy/dividend-yield"
+                        className="align-middle ml-1"
+                      />
+                    </span>
+                    <span>
+                      Market Cap <b>{rec.marketCap ?? '—'}</b>
+                      <InfoTooltip
+                        term="Market Cap"
+                        definition="Company’s total value: share price × shares outstanding."
+                        href="/academy/market-cap"
+                        className="align-middle ml-1"
+                      />
+                    </span>
+                    <span>
+                      Sector <b>{rec.sector ?? '—'}</b>
+                      <InfoTooltip
+                        term="Sector"
+                        definition="Industry group the company operates in (e.g., Technology, Healthcare)."
+                        href="/academy/sectors"
+                        className="align-middle ml-1"
+                      />
+                    </span>
+                    <span>
+                      Beta <b>{rec.beta ?? '—'}</b>
+                      <InfoTooltip
+                        term="Beta"
+                        definition="Beta measures a stock’s volatility vs. the market; 0.8 ≈ 20% less volatile than average."
+                        href="/academy/beta"
+                        className="align-middle ml-1"
+                      />
+                    </span>
+                    <span>
+                      52W High <b>{rec.high52w ?? '—'}</b>
+                      <InfoTooltip
+                        term="52-Week High"
+                        definition="The highest trading price over the last 52 weeks."
+                        href="/academy/52-week-range"
+                        className="align-middle ml-1"
+                      />
+                    </span>
+                    <span>
+                      52W Low <b>{rec.low52w ?? '—'}</b>
+                      <InfoTooltip
+                        term="52-Week Low"
+                        definition="The lowest trading price over the last 52 weeks."
+                        href="/academy/52-week-range"
+                        className="align-middle ml-1"
+                      />
+                    </span>
                   </div>
                   {rec.fit_reason && <div className="mb-1 text-xs text-blue-800">{rec.fit_reason}</div>}
                   {rec.reasoning && <div className="text-xs text-black max-w-2xl mt-1">{rec.reasoning}</div>}
