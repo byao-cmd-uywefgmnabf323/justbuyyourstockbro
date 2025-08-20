@@ -47,37 +47,66 @@ export default function RecommendPage() {
     } finally { setOtherLoading(false); }
   };
 
+  // helper to refetch from session chat on demand
+  const refetchFromSession = async () => {
+    const chatRaw = window.sessionStorage.getItem("jbysb_last_chat");
+    if (!chatRaw) return;
+    setRecLoading(true);
+    try {
+      const chat = JSON.parse(chatRaw);
+      const r = await fetch("/api/ai/recommend", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat }) });
+      const j = await r.json();
+      if (Array.isArray(j.suggestions) && j.suggestions.length) {
+        setResults(j.suggestions);
+        try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(j.suggestions)); } catch {}
+        loadBaseline(j.suggestions.map((r:any)=>String(r.symbol)));
+      }
+    } finally {
+      setRecLoading(false);
+    }
+  };
+
   useEffect(()=>{
     const init = async () => {
       try {
+        let baselineLoaded = false;
         const saved = window.localStorage.getItem("jbysb_last_recs");
         if (saved) {
           const arr = JSON.parse(saved);
           if (Array.isArray(arr) && arr.length > 0) {
             setResults(arr);
             loadBaseline(arr.map((r:any)=>String(r.symbol)));
-            return;
+            baselineLoaded = true;
           }
         }
-        // Fallback: try to refetch using last chat from sessionStorage
-        const chatRaw = window.sessionStorage.getItem("jbysb_last_chat");
-        if (chatRaw) {
-          setRecLoading(true);
-          try {
-            const chat = JSON.parse(chatRaw);
-            const r = await fetch("/api/ai/recommend", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat }) });
-            const j = await r.json();
-            if (Array.isArray(j.suggestions) && j.suggestions.length) {
-              setResults(j.suggestions);
-              try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(j.suggestions)); } catch {}
-              loadBaseline(j.suggestions.map((r:any)=>String(r.symbol)));
-              return;
+        if (!baselineLoaded) {
+          // Fallback: try to refetch using last chat from sessionStorage
+          const chatRaw = window.sessionStorage.getItem("jbysb_last_chat");
+          if (chatRaw) {
+            setRecLoading(true);
+            try {
+              const chat = JSON.parse(chatRaw);
+              const r = await fetch("/api/ai/recommend", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat }) });
+              const j = await r.json();
+              if (Array.isArray(j.suggestions) && j.suggestions.length) {
+                setResults(j.suggestions);
+                try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(j.suggestions)); } catch {}
+                loadBaseline(j.suggestions.map((r:any)=>String(r.symbol)));
+                baselineLoaded = true;
+              }
+            } finally {
+              setRecLoading(false);
             }
-          } finally {
-            setRecLoading(false);
           }
         }
-      } catch {}
+        if (!baselineLoaded) {
+          // Load baseline universe so View More is immediately useful
+          loadBaseline([]);
+        }
+      } catch {
+        // As a last resort, load baseline
+        loadBaseline([]);
+      }
     };
     init();
   },[]);
@@ -121,14 +150,26 @@ export default function RecommendPage() {
             ))}
           </div>
         </section>
-      ): <p className="text-center text-sm">No saved recommendations. Go back to chat.</p>}
+      ) : (
+        <div className="text-center text-sm">
+          {recLoading ? (
+            <p>Getting your picks…</p>
+          ) : (
+            <div className="space-y-3">
+              <p>No saved recommendations.</p>
+              <div className="flex justify-center gap-3">
+                <button className="px-4 py-2 bg-black text-white rounded" onClick={refetchFromSession}>Try again</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
-      {other.length>0 && (
-        <>
+      <>
           <div className="flex justify-center my-6">
             <button
               className="px-5 py-2 bg-gray-800 text-white rounded shadow hover:bg-gray-700"
-              onClick={() => setShowOther(true)}
+              onClick={() => { setShowOther(true); if (!other.length) loadBaseline(results.map((r:any)=>String(r.symbol || '')) || []); }}
             >
               View More
             </button>
@@ -148,7 +189,7 @@ export default function RecommendPage() {
             </section>
           )}
         </>
-      )}
+      )
     </main>
   );
 }
