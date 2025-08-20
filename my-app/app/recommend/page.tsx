@@ -147,8 +147,7 @@ export default function RecommendPage() {
               <div key={rec.symbol} className="flex flex-col md:flex-row items-stretch bg-white border border-gray-200 rounded-lg shadow p-4 gap-4">
                 <div className="flex-[2] flex flex-col justify-between min-w-[160px]">
                   <div className="flex items-center gap-4 mb-2">
-                    <div className="text-2xl font-bold text-black">{rec.symbol}</div>
-                    <div className="text-sm text-gray-600">{rec.name}</div>
+                    <div className="text-2xl font-bold text-black">{rec.name}</div>
                   </div>
                   <div className="flex flex-wrap gap-4 mb-2 text-xs">
                     <span>Price: <b>{rec.price ? `$${rec.price.toFixed(2)}` : '—'}</b></span>
