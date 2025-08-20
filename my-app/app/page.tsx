@@ -3,6 +3,7 @@ import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PriceChart from "@/components/PriceChart";
 import InfoTooltip from "@/components/InfoTooltip";
+import ChatBox from "@/components/ChatBox";
 
 const experienceLevels = [
   { label: "Beginner", value: "beginner" },
@@ -18,7 +19,7 @@ const tradingStyles = [
   { label: "Growth", value: "growth" },
 ];
 
-export default function UserProfileDashboard() {
+export default function ChatPage() {
   const [experience, setExperience] = useState("beginner");
   const [style, setStyle] = useState<string[]>([]);
   const [risk, setRisk] = useState(1);
@@ -39,6 +40,17 @@ export default function UserProfileDashboard() {
   const [filter, setFilter] = useState<"all" | "equity" | "crypto" | "forex">("all");
 
   const riskLevels = ["Low", "Medium", "High"];
+
+  // --- Chat-first UI ---
+  return (
+    <main className="min-h-screen flex flex-col items-center py-10 bg-background px-4">
+      <h1 className="text-3xl font-bold mb-6 text-charcoal">JUST BUY YOUR STOCK BRO</h1>
+      <ChatBox />
+      <p className="mt-6 text-xs text-gray-500 max-w-xl text-center">
+        Remember, Anchor is here for education and ideas, not financial advice. Perform your own research or consult a licensed advisor before investing.
+      </p>
+    </main>
+  );
 
   const toggleStyle = (val: string) => {
     setStyle((prev) =>
