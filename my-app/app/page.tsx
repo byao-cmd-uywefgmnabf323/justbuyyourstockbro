@@ -2,6 +2,7 @@
 import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PriceChart from "@/components/PriceChart";
+import InfoTooltip from "@/components/InfoTooltip";
 
 const experienceLevels = [
   { label: "Beginner", value: "beginner" },
@@ -485,15 +486,39 @@ export default function UserProfileDashboard() {
                   {expanded[rec.symbol] && (
                     <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="p-3 bg-gray-100 border border-gray-300">
-                        <div className="text-xs text-black">P/E Ratio</div>
+                        <div className="text-xs text-black">
+                          P/E Ratio
+                          <InfoTooltip
+                            term="P/E Ratio"
+                            definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation."
+                            href="/academy/pe-ratio"
+                            className="ml-1 align-middle"
+                          />
+                        </div>
                         <div className="font-semibold">{rec.pe ?? "—"}</div>
                       </div>
                       <div className="p-3 bg-gray-100 border border-gray-300">
-                        <div className="text-xs text-black">EPS</div>
+                        <div className="text-xs text-black">
+                          EPS
+                          <InfoTooltip
+                            term="EPS"
+                            definition="Earnings Per Share: a company’s profit divided by the number of shares."
+                            href="/academy/eps"
+                            className="ml-1 align-middle"
+                          />
+                        </div>
                         <div className="font-semibold">{rec.eps ?? "—"}</div>
                       </div>
                       <div className="p-3 bg-gray-100 border border-gray-300">
-                        <div className="text-xs text-black">Dividend Yield</div>
+                        <div className="text-xs text-black">
+                          Dividend Yield
+                          <InfoTooltip
+                            term="Dividend Yield"
+                            definition="Annual dividends as a percentage of the share price."
+                            href="/academy/dividend-yield"
+                            className="ml-1 align-middle"
+                          />
+                        </div>
                         <div className="font-semibold">{rec.dy ?? "—"}%</div>
                       </div>
                       <div className="sm:col-span-3 text-sm text-black text-center">
@@ -540,9 +565,39 @@ export default function UserProfileDashboard() {
                   {/* Indicators */}
                   {(typeof rec.pe === 'number' || typeof rec.eps === 'number' || typeof rec.dy === 'number') && (
                     <div className="mt-1 text-xs text-black">
-                      {typeof rec.pe === 'number' && isFinite(rec.pe) && <span>P/E {rec.pe.toFixed(1)}</span>}
-                      {typeof rec.eps === 'number' && isFinite(rec.eps) && <span className="ml-2">EPS {rec.eps.toFixed(2)}</span>}
-                      {typeof rec.dy === 'number' && isFinite(rec.dy) && <span className="ml-2">DY {rec.dy.toFixed(2)}%</span>}
+                      {typeof rec.pe === 'number' && isFinite(rec.pe) && (
+                        <span>
+                          P/E {rec.pe.toFixed(1)}
+                          <InfoTooltip
+                            term="P/E Ratio"
+                            definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation."
+                            href="/academy/pe-ratio"
+                            className="align-middle"
+                          />
+                        </span>
+                      )}
+                      {typeof rec.eps === 'number' && isFinite(rec.eps) && (
+                        <span className="ml-2">
+                          EPS {rec.eps.toFixed(2)}
+                          <InfoTooltip
+                            term="EPS"
+                            definition="Earnings Per Share: a company’s profit divided by the number of shares."
+                            href="/academy/eps"
+                            className="align-middle"
+                          />
+                        </span>
+                      )}
+                      {typeof rec.dy === 'number' && isFinite(rec.dy) && (
+                        <span className="ml-2">
+                          DY {rec.dy.toFixed(2)}%
+                          <InfoTooltip
+                            term="Dividend Yield"
+                            definition="Annual dividends as a percentage of the share price."
+                            href="/academy/dividend-yield"
+                            className="align-middle"
+                          />
+                        </span>
+                      )}
                     </div>
                   )}
                   <div className="mt-2 flex items-center justify-center gap-2 text-xs text-black">
