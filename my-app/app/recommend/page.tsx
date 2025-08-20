@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import PriceChart from "@/components/PriceChart";
 import InlineDef from "@/components/InlineDef";
+import ProjectionTool from "@/components/ProjectionTool";
 
 export default function RecommendPage() {
   const [showOther, setShowOther] = useState(false);
@@ -238,6 +239,12 @@ export default function RecommendPage() {
                 </div>
                 <div className="flex-1 flex items-center justify-center min-w-[220px]">
                   <PriceChart symbol={rec.symbol} range="6mo" interval="1d" height={120} showMA={false} showEMA={false} showMACD={false} showRSI={false} />
+                </div>
+                <div className="md:col-span-2">
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-sm text-gray-900">Investment Projection</summary>
+                    <ProjectionTool symbol={rec.symbol} currentPrice={rec.price} />
+                  </details>
                 </div>
               </div>
             ))}
