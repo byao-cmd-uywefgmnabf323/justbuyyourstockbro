@@ -42,9 +42,9 @@ export async function POST(req: NextRequest) {
     let reply: string = data.choices?.[0]?.message?.content ?? "Sorry, I couldn't think of a reply.";
     // If we're about to recommend, replace with a short handoff
     if (reply && /<RECOMMEND/.test(reply)) {
-      reply = "Sounds good, I will now begin generating stock recommendations suited to your needs and goals.\n<RECOMMEND />";
+      reply = "Thank you for sharing. I'm now generating your personalized stock recommendations. You will be redirected to your results." + "\n<RECOMMEND />";
     } else if (reply && !reply.includes("<RECOMMEND")) {
-      reply += " \n<RECOMMEND />";
+      reply = "Thank you for sharing. I'm now generating your personalized stock recommendations. You will be redirected to your results." + "\n<RECOMMEND />";
     }
     return NextResponse.json({ reply });
   } catch (e: any) {
