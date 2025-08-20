@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 interface Msg {
   role: "user" | "assistant";
@@ -11,7 +12,7 @@ export default function ChatBox() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [recs, setRecs] = useState<any[]>([]);
+    const router = useRouter();
   const endRef = useRef<HTMLDivElement>(null);
 
   // auto-scroll
@@ -39,7 +40,10 @@ export default function ChatBox() {
           try {
             const r = await fetch("/api/ai/recommend", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat: messages }) });
             const j = await r.json();
-            if (Array.isArray(j.suggestions)) setRecs(j.suggestions);
+            if (Array.isArray(j.suggestions)) {
+              try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(j.suggestions)); } catch {}
+              router.push("/recommend");
+            }
           } catch {}
         }
       }
@@ -88,7 +92,7 @@ export default function ChatBox() {
           </button>
         </div>
       </div>
-      {recs.length > 0 && (
+      {/* rec list removed */}
         <div className="border-t border-gray-300 p-4 text-sm bg-gray-50">
           <h3 className="font-semibold mb-2">AI Recommendations</h3>
           <ul className="list-disc pl-5 space-y-1">
