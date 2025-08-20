@@ -28,7 +28,7 @@ export default function RootLayout({
         {/* Global top header with explicit Dashboard button */}
         <header className="w-full border-b border-border bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60">
           <div className="w-full max-w-laptop mx-auto px-4 h-12 flex items-center justify-between">
-            <div className="font-semibold">JustBuyYourStockBro</div>
+            <Link href="/recommend" className="font-semibold hover:underline">JustBuyYourStockBro</Link>
             <nav className="flex items-center gap-3">
               <Link
                 href="/?intro=1"

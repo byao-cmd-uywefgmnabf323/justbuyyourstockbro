@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import PriceChart from "@/components/PriceChart";
-import InfoTooltip from "@/components/InfoTooltip";
+import InlineDef from "@/components/InlineDef";
 
 export default function RecommendPage() {
   const [showOther, setShowOther] = useState(false);
@@ -11,6 +11,9 @@ export default function RecommendPage() {
   const [otherLoading, setOtherLoading] = useState(false);
   const [otherLoadedCount, setOtherLoadedCount] = useState(0);
   const [recLoading, setRecLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
 
   // baseline universe copied from old page
   const BASE_UNIVERSE: string[] = [
@@ -142,6 +145,47 @@ export default function RecommendPage() {
       {results.length>0 ? (
         <section className="mb-10">
           <h2 className="text-lg font-semibold mb-3 text-charcoal text-center">Recommendations</h2>
+          <div className="max-w-2xl mx-auto mb-4">
+            <form
+              onSubmit={(e)=>{e.preventDefault(); (async()=>{
+                const raw = searchQuery.trim();
+                if (!raw) return; const symbols = raw.split(/[ ,\n\t]+/).filter(Boolean).slice(0,10);
+                setSearchLoading(true); setSearchResults([]);
+                try {
+                  const res = await fetch(`/api/market/quote?symbols=${encodeURIComponent(symbols.join(","))}&_=${Date.now()}`, { cache: "no-store" });
+                  const j = await res.json();
+                  const items = Array.isArray(j.items) ? j.items : [];
+                  const mapped = items.map((q: any) => ({
+                    type: String(q.symbol).endsWith("-USD") ? "crypto" : String(q.symbol).endsWith("=X") ? "forex" : "equity",
+                    symbol: q.symbol,
+                    name: q.longName || q.shortName || q.symbol,
+                    price: Number.isFinite(q.price) ? q.price : null,
+                    change1D: typeof q.changePercent === 'number' ? `${q.changePercent.toFixed(2)}%` : '—',
+                    change1W: '—',
+                    change1M: '—',
+                    rating: undefined,
+                    pe: typeof (q as any).trailingPE === 'number' && isFinite((q as any).trailingPE) ? (q as any).trailingPE : null,
+                    eps: typeof (q as any).epsTTM === 'number' && isFinite((q as any).epsTTM) ? (q as any).epsTTM : null,
+                    dy: typeof (q as any).dividendYield === 'number' && isFinite((q as any).dividendYield) ? (q as any).dividendYield : null,
+                    reasoning: '',
+                    signal: 'Hold',
+                  }));
+                  setSearchResults(mapped);
+                } catch { setSearchResults([]); }
+                finally { setSearchLoading(false); }
+              })(); }}
+              className="flex gap-2"
+            >
+              <input
+                value={searchQuery}
+                onChange={(e)=>setSearchQuery(e.target.value)}
+                placeholder="Search symbols, e.g., AAPL, MSFT"
+                className="flex-1 border border-gray-300 bg-white px-3 py-2 text-sm text-charcoal"
+              />
+              <button type="submit" className="px-4 py-2 bg-black text-white text-sm">Search</button>
+            </form>
+            {searchLoading && <div className="mt-2 text-center text-xs text-black">Searching…</div>}
+          </div>
           <div className="flex flex-col gap-4">
             {results.map((rec:any)=> (
               <div key={rec.symbol} className="flex flex-col md:flex-row items-stretch bg-white border border-gray-200 rounded-lg shadow p-4 gap-4">
@@ -163,76 +207,30 @@ export default function RecommendPage() {
                       1M: {rec.change1M || '—'}
                     </span>
                     <span>
-                      P/E <b>{rec.pe ?? '—'}</b>
-                      <InfoTooltip
-                        term="P/E Ratio"
-                        definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation."
-                        href="/academy/pe-ratio"
-                        className="align-middle ml-1"
-                      />
+                      <InlineDef label="P/E" term="P/E Ratio" definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation." href="/academy/pe-ratio" />
+                      {' '}
+                      <b>{rec.pe ?? '—'}</b>
                     </span>
                     <span>
-                      EPS <b>{rec.eps ?? '—'}</b>
-                      <InfoTooltip
-                        term="EPS"
-                        definition="Earnings Per Share: a company’s profit divided by the number of shares."
-                        href="/academy/eps"
-                        className="align-middle ml-1"
-                      />
+                      <InlineDef label="EPS" term="EPS" definition="Earnings Per Share: a company’s profit divided by the number of shares." href="/academy/eps" />
+                      {' '}
+                      <b>{rec.eps ?? '—'}</b>
                     </span>
                     <span>
-                      Div Yield <b>{rec.dividendYield ?? rec.dy ?? '—'}</b>
-                      <InfoTooltip
-                        term="Dividend Yield"
-                        definition="Annual dividends as a percentage of the share price."
-                        href="/academy/dividend-yield"
-                        className="align-middle ml-1"
-                      />
+                      <InlineDef label="Div Yield" term="Dividend Yield" definition="Annual dividends as a percentage of the share price." href="/academy/dividend-yield" />{' '}
+                      <b>{rec.dividendYield ?? rec.dy ?? '—'}</b>
                     </span>
                     <span>
-                      Market Cap <b>{rec.marketCap ?? '—'}</b>
-                      <InfoTooltip
-                        term="Market Cap"
-                        definition="Company’s total value: share price × shares outstanding."
-                        href="/academy/market-cap"
-                        className="align-middle ml-1"
-                      />
+                      <InlineDef label="Beta" term="Beta" definition="Beta measures a stock’s volatility vs. the market; 0.8 ≈ 20% less volatile than average." href="/academy/beta" />{' '}
+                      <b>{rec.beta ?? '—'}</b>
                     </span>
                     <span>
-                      Sector <b>{rec.sector ?? '—'}</b>
-                      <InfoTooltip
-                        term="Sector"
-                        definition="Industry group the company operates in (e.g., Technology, Healthcare)."
-                        href="/academy/sectors"
-                        className="align-middle ml-1"
-                      />
+                      <InlineDef label="52W High" term="52-Week High" definition="The highest trading price over the last 52 weeks." href="/academy/52-week-range" />{' '}
+                      <b>{rec.high52w ?? '—'}</b>
                     </span>
                     <span>
-                      Beta <b>{rec.beta ?? '—'}</b>
-                      <InfoTooltip
-                        term="Beta"
-                        definition="Beta measures a stock’s volatility vs. the market; 0.8 ≈ 20% less volatile than average."
-                        href="/academy/beta"
-                        className="align-middle ml-1"
-                      />
-                    </span>
-                    <span>
-                      52W High <b>{rec.high52w ?? '—'}</b>
-                      <InfoTooltip
-                        term="52-Week High"
-                        definition="The highest trading price over the last 52 weeks."
-                        href="/academy/52-week-range"
-                        className="align-middle ml-1"
-                      />
-                    </span>
-                    <span>
-                      52W Low <b>{rec.low52w ?? '—'}</b>
-                      <InfoTooltip
-                        term="52-Week Low"
-                        definition="The lowest trading price over the last 52 weeks."
-                        href="/academy/52-week-range"
-                        className="align-middle ml-1"
-                      />
+                      <InlineDef label="52W Low" term="52-Week Low" definition="The lowest trading price over the last 52 weeks." href="/academy/52-week-range" />{' '}
+                      <b>{rec.low52w ?? '—'}</b>
                     </span>
                   </div>
                   {rec.fit_reason && <div className="mb-1 text-xs text-blue-800">{rec.fit_reason}</div>}
@@ -259,32 +257,6 @@ export default function RecommendPage() {
           )}
         </div>
       )}
-
-      <>
-          <div className="flex justify-center my-6">
-            <button
-              className="px-5 py-2 bg-gray-800 text-white rounded shadow hover:bg-gray-700"
-              onClick={() => { setShowOther(true); if (!other.length) loadBaseline(results.map((r:any)=>String(r.symbol || '')) || []); }}
-            >
-              View More
-            </button>
-          </div>
-          {showOther && (
-            <section>
-              <h2 className="text-lg font-semibold mb-3 text-charcoal text-center">Other Stocks</h2>
-              {otherLoading && <p className="text-center text-xs text-gray-500 mb-2">Loading {otherLoadedCount}/{BASE_UNIVERSE.length}</p>}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                {other.map(o=> (
-                  <div key={o.symbol} className="card text-center">
-                    <div className="font-bold text-charcoal mb-1">{o.symbol}</div>
-                    <div className="text-sm font-semibold">{o.price? `$${o.price.toFixed(2)}`:'—'} <span className={String(o.change1D).startsWith('-')? 'text-red-600':'text-green-600'}>{o.change1D}</span></div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-        </>
-      )
     </main>
   );
 }

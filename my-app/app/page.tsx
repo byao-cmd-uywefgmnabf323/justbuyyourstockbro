@@ -2,7 +2,7 @@
 import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PriceChart from "@/components/PriceChart";
-import InfoTooltip from "@/components/InfoTooltip";
+import InlineDef from "@/components/InlineDef";
 import ChatBox from "@/components/ChatBox";
 
 const experienceLevels = [
@@ -498,68 +498,35 @@ export default function ChatPage() {
                   {/* Indicators under timeframes */}
                   <div className="mt-1 text-xs text-black">
                     <span>
-                      P/E {typeof rec.pe === 'number' && isFinite(rec.pe) ? rec.pe.toFixed(1) : '—'}
-                      <InfoTooltip
-                        term="P/E Ratio"
-                        definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation."
-                        href="/academy/pe-ratio"
-                        className="align-middle ml-1"
-                      />
+                      <InlineDef label="P/E" term="P/E Ratio" definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation." href="/academy/pe-ratio" />{' '}
+                      {typeof rec.pe === 'number' && isFinite(rec.pe) ? rec.pe.toFixed(1) : '—'}
                     </span>
                     <span className="ml-3">
-                      EPS {typeof rec.eps === 'number' && isFinite(rec.eps) ? rec.eps.toFixed(2) : '—'}
-                      <InfoTooltip
-                        term="EPS"
-                        definition="Earnings Per Share: a company’s profit divided by the number of shares."
-                        href="/academy/eps"
-                        className="align-middle ml-1"
-                      />
+                      <InlineDef label="EPS" term="EPS" definition="Earnings Per Share: a company’s profit divided by the number of shares." href="/academy/eps" />{' '}
+                      {typeof rec.eps === 'number' && isFinite(rec.eps) ? rec.eps.toFixed(2) : '—'}
                     </span>
                     <span className="ml-3">
-                      DY {typeof rec.dy === 'number' && isFinite(rec.dy) ? `${rec.dy.toFixed(2)}%` : '—'}
-                      <InfoTooltip
-                        term="Dividend Yield"
-                        definition="Annual dividends as a percentage of the share price."
-                        href="/academy/dividend-yield"
-                        className="align-middle ml-1"
-                      />
+                      <InlineDef label="DY" term="Dividend Yield" definition="Annual dividends as a percentage of the share price." href="/academy/dividend-yield" />{' '}
+                      {typeof rec.dy === 'number' && isFinite(rec.dy) ? `${rec.dy.toFixed(2)}%` : '—'}
                     </span>
                   </div>
                   {expanded[rec.symbol] && (
                     <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="p-3 bg-gray-100 border border-gray-300">
                         <div className="text-xs text-black">
-                          P/E Ratio
-                          <InfoTooltip
-                            term="P/E Ratio"
-                            definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation."
-                            href="/academy/pe-ratio"
-                            className="ml-1 align-middle"
-                          />
+                          <InlineDef label="P/E Ratio" term="P/E Ratio" definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation." href="/academy/pe-ratio" />
                         </div>
                         <div className="font-semibold">{rec.pe ?? "—"}</div>
                       </div>
                       <div className="p-3 bg-gray-100 border border-gray-300">
                         <div className="text-xs text-black">
-                          EPS
-                          <InfoTooltip
-                            term="EPS"
-                            definition="Earnings Per Share: a company’s profit divided by the number of shares."
-                            href="/academy/eps"
-                            className="ml-1 align-middle"
-                          />
+                          <InlineDef label="EPS" term="EPS" definition="Earnings Per Share: a company’s profit divided by the number of shares." href="/academy/eps" />
                         </div>
                         <div className="font-semibold">{rec.eps ?? "—"}</div>
                       </div>
                       <div className="p-3 bg-gray-100 border border-gray-300">
                         <div className="text-xs text-black">
-                          Dividend Yield
-                          <InfoTooltip
-                            term="Dividend Yield"
-                            definition="Annual dividends as a percentage of the share price."
-                            href="/academy/dividend-yield"
-                            className="ml-1 align-middle"
-                          />
+                          <InlineDef label="Dividend Yield" term="Dividend Yield" definition="Annual dividends as a percentage of the share price." href="/academy/dividend-yield" />
                         </div>
                         <div className="font-semibold">{rec.dy ?? "—"}%</div>
                       </div>
@@ -613,31 +580,16 @@ export default function ChatPage() {
                   {/* Indicators under timeframes */}
                   <div className="mt-1 text-xs text-black">
                     <span>
-                      P/E {typeof rec.pe === 'number' && isFinite(rec.pe) ? rec.pe.toFixed(1) : '—'}
-                      <InfoTooltip
-                        term="P/E Ratio"
-                        definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation."
-                        href="/academy/pe-ratio"
-                        className="align-middle ml-1"
-                      />
+                      <InlineDef label="P/E" term="P/E Ratio" definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation." href="/academy/pe-ratio" />{' '}
+                      {typeof rec.pe === 'number' && isFinite(rec.pe) ? rec.pe.toFixed(1) : '—'}
                     </span>
                     <span className="ml-3">
-                      EPS {typeof rec.eps === 'number' && isFinite(rec.eps) ? rec.eps.toFixed(2) : '—'}
-                      <InfoTooltip
-                        term="EPS"
-                        definition="Earnings Per Share: a company’s profit divided by the number of shares."
-                        href="/academy/eps"
-                        className="align-middle ml-1"
-                      />
+                      <InlineDef label="EPS" term="EPS" definition="Earnings Per Share: a company’s profit divided by the number of shares." href="/academy/eps" />{' '}
+                      {typeof rec.eps === 'number' && isFinite(rec.eps) ? rec.eps.toFixed(2) : '—'}
                     </span>
                     <span className="ml-3">
-                      DY {typeof rec.dy === 'number' && isFinite(rec.dy) ? `${rec.dy.toFixed(2)}%` : '—'}
-                      <InfoTooltip
-                        term="Dividend Yield"
-                        definition="Annual dividends as a percentage of the share price."
-                        href="/academy/dividend-yield"
-                        className="align-middle ml-1"
-                      />
+                      <InlineDef label="DY" term="Dividend Yield" definition="Annual dividends as a percentage of the share price." href="/academy/dividend-yield" />{' '}
+                      {typeof rec.dy === 'number' && isFinite(rec.dy) ? `${rec.dy.toFixed(2)}%` : '—'}
                     </span>
                   </div>
                   <div className="mt-3">
