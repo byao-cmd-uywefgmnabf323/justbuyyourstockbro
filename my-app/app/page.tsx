@@ -41,16 +41,7 @@ export default function ChatPage() {
 
   const riskLevels = ["Low", "Medium", "High"];
 
-  // --- Chat-first UI ---
-  return (
-    <main className="min-h-screen flex flex-col items-center py-10 bg-background px-4">
-      <h1 className="text-3xl font-bold mb-6 text-charcoal">JUST BUY YOUR STOCK BRO</h1>
-      <ChatBox />
-      <p className="mt-6 text-xs text-gray-500 max-w-xl text-center">
-        Remember, Anchor is here for education and ideas, not financial advice. Perform your own research or consult a licensed advisor before investing.
-      </p>
-    </main>
-  );
+  // (removed early return to allow Intro modal logic and full page to render)
 
   const toggleStyle = (val: string) => {
     setStyle((prev) =>
@@ -550,6 +541,9 @@ export default function ChatPage() {
                     >
                       {expanded[rec.symbol] ? "Hide details" : "Show details"}
                     </button>
+                  </div>
+                  <div className="mt-2 text-center">
+                    <a className="text-sm underline" href={`/symbol/${encodeURIComponent(rec.symbol)}`}>Open</a>
                   </div>
                 </div>
               ))}

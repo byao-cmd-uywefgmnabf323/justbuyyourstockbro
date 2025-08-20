@@ -80,8 +80,8 @@ export default function ChatBox() {
   };
 
   return (
-    <div className="w-full max-w-xl flex flex-col border border-gray-300 bg-white min-h-[70vh]">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="w-full max-w-xl flex flex-col border border-gray-300 bg-white h-[300px]">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {messages.map((m, i) => {
           const display = m.role === "assistant" ? m.content.replace(/<\s*recommend\s*\/?>/ig, "").trim() : m.content;
           return (
@@ -93,21 +93,21 @@ export default function ChatBox() {
         {loading && <div className="text-left text-sm text-gray-500">Anchor is typing…</div>}
         <div ref={endRef} />
       </div>
-      <div className="border-t border-gray-300 p-3">
+      <div className="border-t border-gray-300 p-2">
         <textarea
           rows={2}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKey}
           placeholder="Type your message…"
-          className="w-full border border-gray-300 p-2 resize-none rounded-none focus:outline-none"
+          className="w-full border border-gray-300 p-2 resize-none rounded-none focus:outline-none text-sm"
         />
         <div className="mt-2 text-right">
           <button
             type="button"
             onClick={send}
             disabled={loading || !input.trim()}
-            className="px-4 py-2 bg-black text-white disabled:opacity-50"
+            className="px-3 py-1.5 bg-black text-white text-sm disabled:opacity-50"
           >
             Send
           </button>

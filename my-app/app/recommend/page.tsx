@@ -186,6 +186,41 @@ export default function RecommendPage() {
               <button type="submit" className="px-4 py-2 bg-black text-white text-sm">Search</button>
             </form>
             {searchLoading && <div className="mt-2 text-center text-xs text-black">Searching…</div>}
+            {!searchLoading && searchResults.length > 0 && (
+              <div className="mt-3 grid grid-cols-1 gap-3">
+                {searchResults.map((sr:any) => (
+                  <div key={`sr-${sr.symbol}`} className="flex flex-col md:flex-row items-stretch bg-white border border-gray-200 rounded p-3 gap-3">
+                    <div className="flex-1">
+                      <div className="text-lg font-semibold text-black">{sr.symbol} <span className="text-sm font-normal text-gray-800">{sr.name}</span></div>
+                      <div className="mt-1 text-sm">
+                        <span className="font-semibold">{Number.isFinite(sr.price)? `$${sr.price.toFixed(2)}` : '—'}</span>
+                        <span className={`ml-2 ${String(sr.change1D).startsWith('-')? 'text-red-600':'text-green-600'}`}>{sr.change1D}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-black">
+                        <span>
+                          <InlineDef label="P/E" term="P/E Ratio" definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation." href="/academy/pe-ratio" />{' '}
+                          {typeof sr.pe === 'number' && isFinite(sr.pe) ? sr.pe.toFixed(1) : '—'}
+                        </span>
+                        <span className="ml-3">
+                          <InlineDef label="EPS" term="EPS" definition="Earnings Per Share: a company’s profit divided by the number of shares." href="/academy/eps" />{' '}
+                          {typeof sr.eps === 'number' && isFinite(sr.eps) ? sr.eps.toFixed(2) : '—'}
+                        </span>
+                        <span className="ml-3">
+                          <InlineDef label="DY" term="Dividend Yield" definition="Annual dividends as a percentage of the share price." href="/academy/dividend-yield" />{' '}
+                          {typeof sr.dy === 'number' && isFinite(sr.dy) ? `${sr.dy.toFixed(2)}%` : '—'}
+                        </span>
+                      </div>
+                      <div className="mt-2">
+                        <a className="text-sm underline" href={`/symbol/${encodeURIComponent(sr.symbol)}`}>Open</a>
+                      </div>
+                    </div>
+                    <div className="min-w-[220px] flex items-center justify-center">
+                      <PriceChart symbol={sr.symbol} range="6mo" interval="1d" height={100} showMA={false} showEMA={false} showMACD={false} showRSI={false} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-4">
             {results.map((rec:any)=> (
@@ -245,6 +280,9 @@ export default function RecommendPage() {
                     <summary className="cursor-pointer text-sm text-gray-900">Investment Projection</summary>
                     <ProjectionTool symbol={rec.symbol} currentPrice={rec.price} />
                   </details>
+                </div>
+                <div className="md:col-span-2 mt-2">
+                  <a className="text-sm underline" href={`/symbol/${encodeURIComponent(rec.symbol)}`}>Open</a>
                 </div>
               </div>
             ))}
