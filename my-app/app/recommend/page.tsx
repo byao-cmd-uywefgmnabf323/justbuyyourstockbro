@@ -66,24 +66,34 @@ export default function RecommendPage() {
           <h2 className="text-lg font-semibold mb-3 text-charcoal text-center">Recommendations</h2>
           <div className="flex flex-col gap-4">
             {results.map((rec:any)=> (
-              <div key={rec.symbol} className="flex flex-col sm:flex-row items-center bg-white border border-gray-200 rounded-lg shadow p-4 gap-4">
-                <div className="flex-1 flex flex-col items-start">
-                  <div className="text-xl font-bold text-black">{rec.symbol}</div>
-                  <div className="text-sm text-gray-600 mb-2">{rec.name}</div>
-                  <div className="flex flex-wrap gap-4 mb-2">
-                    <span className="text-lg font-semibold">{rec.price ? `$${rec.price.toFixed(2)}` : '—'}</span>
-                    <span className={typeof rec.change1D === 'string' && rec.change1D.startsWith('-') ? 'text-red-600' : 'text-green-600'}>{rec.change1D || '—'}</span>
-                    <span className="text-xs">P/E: <b>{rec.pe ?? '—'}</b></span>
-                    <span className="text-xs">EPS: <b>{rec.eps ?? '—'}</b></span>
-                    <span className="text-xs">Dividend: <b>{rec.dividendYield ?? '—'}</b></span>
-                  </div>
-                  {rec.reasoning && <div className="mt-1 text-xs text-black max-w-xl">{rec.reasoning}</div>}
-                </div>
-                <div className="w-40 min-w-[160px] h-20 flex items-center justify-center">
-                  <PriceChart symbol={rec.symbol} range="1M" interval="1d" height={60} />
-                </div>
-              </div>
-            ))}
+  <div key={rec.symbol} className="flex flex-col md:flex-row items-stretch bg-white border border-gray-200 rounded-lg shadow p-4 gap-4">
+    <div className="flex-[2] flex flex-col justify-between min-w-[160px]">
+      <div className="flex items-center gap-4 mb-2">
+        <div className="text-2xl font-bold text-black">{rec.symbol}</div>
+        <div className="text-sm text-gray-600">{rec.name}</div>
+      </div>
+      <div className="flex flex-wrap gap-4 mb-2 text-xs">
+        <span>Price: <b>{rec.price ? `$${rec.price.toFixed(2)}` : '—'}</b></span>
+        <span className={typeof rec.change1D === 'string' && rec.change1D.startsWith('-') ? 'text-red-600' : 'text-green-600'}>1D: {rec.change1D || '—'}</span>
+        <span>1W: {rec.change1W || '—'}</span>
+        <span>1M: {rec.change1M || '—'}</span>
+        <span>P/E: <b>{rec.pe ?? '—'}</b></span>
+        <span>EPS: <b>{rec.eps ?? '—'}</b></span>
+        <span>Div Yield: <b>{rec.dividendYield ?? rec.dy ?? '—'}</b></span>
+        <span>Market Cap: <b>{rec.marketCap ?? '—'}</b></span>
+        <span>Sector: <b>{rec.sector ?? '—'}</b></span>
+        <span>Beta: <b>{rec.beta ?? '—'}</b></span>
+        <span>52W High: <b>{rec.high52w ?? '—'}</b></span>
+        <span>52W Low: <b>{rec.low52w ?? '—'}</b></span>
+      </div>
+      {rec.fit_reason && <div className="mb-1 text-xs text-blue-800">{rec.fit_reason}</div>}
+      {rec.reasoning && <div className="text-xs text-black max-w-2xl mt-1">{rec.reasoning}</div>}
+    </div>
+    <div className="flex-1 flex items-center justify-center min-w-[180px]">
+      <PriceChart symbol={rec.symbol} range="1M" interval="1d" height={80} />
+    </div>
+  </div>
+))
           </div>
         </section>
       ): <p className="text-center text-sm">No saved recommendations. Go back to chat.</p>}
