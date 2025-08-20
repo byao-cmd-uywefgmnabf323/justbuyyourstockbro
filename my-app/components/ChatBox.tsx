@@ -35,16 +35,27 @@ export default function ChatBox() {
       const data = await res.json();
       if (data.reply) {
         setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
-        if (/\<RECOMMEND/.test(data.reply)) {
-          // call existing recommendation endpoint with simple defaults
+        const shouldRecommend = /<\s*recommend\b/i.test(data.reply);
+        if (shouldRecommend) {
+          // Call recommendation endpoint with latest chat (include current user message)
+          let saved = false;
           try {
-            const r = await fetch("/api/ai/recommend", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat: messages }) });
+            const r = await fetch("/api/ai/recommend", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ chat: [...messages, userMsg].slice(-10) }),
+            });
             const j = await r.json();
-            if (Array.isArray(j.suggestions)) {
+            if (Array.isArray(j.suggestions) && j.suggestions.length) {
               try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(j.suggestions)); } catch {}
-              router.push("/recommend");
+              saved = true;
             }
           } catch {}
+          if (!saved) {
+            // Ensure key exists so /recommend doesn't show empty state without context
+            try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify([])); } catch {}
+          }
+          try { await router.push("/recommend"); } catch {}
         }
       }
     } catch (e) {
