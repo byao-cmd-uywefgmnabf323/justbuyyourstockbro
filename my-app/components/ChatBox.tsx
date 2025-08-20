@@ -37,13 +37,17 @@ export default function ChatBox() {
         setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
         const shouldRecommend = /<\s*recommend\b/i.test(data.reply);
         if (shouldRecommend) {
+          // Persist latest chat so /recommend can refetch if needed
+          const latestChat = [...messages, userMsg].slice(-10);
+          try { window.sessionStorage.setItem("jbysb_last_chat", JSON.stringify(latestChat)); } catch {}
+
           // Call recommendation endpoint with latest chat (include current user message)
           let saved = false;
           try {
             const r = await fetch("/api/ai/recommend", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ chat: [...messages, userMsg].slice(-10) }),
+              body: JSON.stringify({ chat: latestChat }),
             });
             const j = await r.json();
             if (Array.isArray(j.suggestions) && j.suggestions.length) {

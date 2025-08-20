@@ -10,6 +10,7 @@ export default function RecommendPage() {
   const [other, setOther] = useState<any[]>([]);
   const [otherLoading, setOtherLoading] = useState(false);
   const [otherLoadedCount, setOtherLoadedCount] = useState(0);
+  const [recLoading, setRecLoading] = useState(false);
 
   // baseline universe copied from old page
   const BASE_UNIVERSE: string[] = [
@@ -47,14 +48,38 @@ export default function RecommendPage() {
   };
 
   useEffect(()=>{
-    try {
-      const saved = window.localStorage.getItem("jbysb_last_recs");
-      if (saved) {
-        const arr = JSON.parse(saved);
-        setResults(arr);
-        loadBaseline(arr.map((r:any)=>String(r.symbol)));
-      }
-    } catch {}
+    const init = async () => {
+      try {
+        const saved = window.localStorage.getItem("jbysb_last_recs");
+        if (saved) {
+          const arr = JSON.parse(saved);
+          if (Array.isArray(arr) && arr.length > 0) {
+            setResults(arr);
+            loadBaseline(arr.map((r:any)=>String(r.symbol)));
+            return;
+          }
+        }
+        // Fallback: try to refetch using last chat from sessionStorage
+        const chatRaw = window.sessionStorage.getItem("jbysb_last_chat");
+        if (chatRaw) {
+          setRecLoading(true);
+          try {
+            const chat = JSON.parse(chatRaw);
+            const r = await fetch("/api/ai/recommend", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat }) });
+            const j = await r.json();
+            if (Array.isArray(j.suggestions) && j.suggestions.length) {
+              setResults(j.suggestions);
+              try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(j.suggestions)); } catch {}
+              loadBaseline(j.suggestions.map((r:any)=>String(r.symbol)));
+              return;
+            }
+          } finally {
+            setRecLoading(false);
+          }
+        }
+      } catch {}
+    };
+    init();
   },[]);
 
   return (
