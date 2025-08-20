@@ -483,6 +483,36 @@ export default function UserProfileDashboard() {
                     <span>· 1W {rec.change1W}</span>
                     <span>· 1M {rec.change1M}</span>
                   </div>
+                  {/* Indicators under timeframes */}
+                  <div className="mt-1 text-xs text-black">
+                    <span>
+                      P/E {typeof rec.pe === 'number' && isFinite(rec.pe) ? rec.pe.toFixed(1) : '—'}
+                      <InfoTooltip
+                        term="P/E Ratio"
+                        definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation."
+                        href="/academy/pe-ratio"
+                        className="align-middle ml-1"
+                      />
+                    </span>
+                    <span className="ml-3">
+                      EPS {typeof rec.eps === 'number' && isFinite(rec.eps) ? rec.eps.toFixed(2) : '—'}
+                      <InfoTooltip
+                        term="EPS"
+                        definition="Earnings Per Share: a company’s profit divided by the number of shares."
+                        href="/academy/eps"
+                        className="align-middle ml-1"
+                      />
+                    </span>
+                    <span className="ml-3">
+                      DY {typeof rec.dy === 'number' && isFinite(rec.dy) ? `${rec.dy.toFixed(2)}%` : '—'}
+                      <InfoTooltip
+                        term="Dividend Yield"
+                        definition="Annual dividends as a percentage of the share price."
+                        href="/academy/dividend-yield"
+                        className="align-middle ml-1"
+                      />
+                    </span>
+                  </div>
                   {expanded[rec.symbol] && (
                     <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="p-3 bg-gray-100 border border-gray-300">
@@ -562,48 +592,41 @@ export default function UserProfileDashboard() {
                     <span className="font-semibold">{(() => { const pv = Number((rec as any).price); return Number.isFinite(pv) ? `$${pv.toFixed(2)}` : '—'; })()}</span>
                     <span className={`ml-2 ${String(rec.change1D).startsWith("-") ? "text-red-600" : "text-green-600"}`}>{rec.change1D}</span>
                   </div>
-                  {/* Indicators */}
-                  {(typeof rec.pe === 'number' || typeof rec.eps === 'number' || typeof rec.dy === 'number') && (
-                    <div className="mt-1 text-xs text-black">
-                      {typeof rec.pe === 'number' && isFinite(rec.pe) && (
-                        <span>
-                          P/E {rec.pe.toFixed(1)}
-                          <InfoTooltip
-                            term="P/E Ratio"
-                            definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation."
-                            href="/academy/pe-ratio"
-                            className="align-middle"
-                          />
-                        </span>
-                      )}
-                      {typeof rec.eps === 'number' && isFinite(rec.eps) && (
-                        <span className="ml-2">
-                          EPS {rec.eps.toFixed(2)}
-                          <InfoTooltip
-                            term="EPS"
-                            definition="Earnings Per Share: a company’s profit divided by the number of shares."
-                            href="/academy/eps"
-                            className="align-middle"
-                          />
-                        </span>
-                      )}
-                      {typeof rec.dy === 'number' && isFinite(rec.dy) && (
-                        <span className="ml-2">
-                          DY {rec.dy.toFixed(2)}%
-                          <InfoTooltip
-                            term="Dividend Yield"
-                            definition="Annual dividends as a percentage of the share price."
-                            href="/academy/dividend-yield"
-                            className="align-middle"
-                          />
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  
                   <div className="mt-2 flex items-center justify-center gap-2 text-xs text-black">
                     <span>24h {rec.change1D}</span>
                     <span>· 1W {rec.change1W}</span>
                     <span>· 1M {rec.change1M}</span>
+                  </div>
+                  {/* Indicators under timeframes */}
+                  <div className="mt-1 text-xs text-black">
+                    <span>
+                      P/E {typeof rec.pe === 'number' && isFinite(rec.pe) ? rec.pe.toFixed(1) : '—'}
+                      <InfoTooltip
+                        term="P/E Ratio"
+                        definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation."
+                        href="/academy/pe-ratio"
+                        className="align-middle ml-1"
+                      />
+                    </span>
+                    <span className="ml-3">
+                      EPS {typeof rec.eps === 'number' && isFinite(rec.eps) ? rec.eps.toFixed(2) : '—'}
+                      <InfoTooltip
+                        term="EPS"
+                        definition="Earnings Per Share: a company’s profit divided by the number of shares."
+                        href="/academy/eps"
+                        className="align-middle ml-1"
+                      />
+                    </span>
+                    <span className="ml-3">
+                      DY {typeof rec.dy === 'number' && isFinite(rec.dy) ? `${rec.dy.toFixed(2)}%` : '—'}
+                      <InfoTooltip
+                        term="Dividend Yield"
+                        definition="Annual dividends as a percentage of the share price."
+                        href="/academy/dividend-yield"
+                        className="align-middle ml-1"
+                      />
+                    </span>
                   </div>
                   <div className="mt-3">
                     <a className="text-sm underline" href={`/symbol/${encodeURIComponent(rec.symbol)}`}>Open</a>
