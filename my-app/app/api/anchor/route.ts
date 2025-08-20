@@ -39,7 +39,10 @@ export async function POST(req: NextRequest) {
       }),
     });
     const data = await resp.json();
-    const reply = data.choices?.[0]?.message?.content ?? "Sorry, I couldn't think of a reply.";
+    let reply: string = data.choices?.[0]?.message?.content ?? "Sorry, I couldn't think of a reply.";
+    if (reply && !reply.includes("<RECOMMEND")) {
+      reply += " \n<RECOMMEND />";
+    }
     return NextResponse.json({ reply });
   } catch (e: any) {
     console.error("/api/anchor error", e);

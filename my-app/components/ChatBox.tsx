@@ -11,6 +11,7 @@ export default function ChatBox() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [recs, setRecs] = useState<any[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
 
   // auto-scroll
@@ -33,6 +34,14 @@ export default function ChatBox() {
       const data = await res.json();
       if (data.reply) {
         setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
+        if (/\<RECOMMEND/.test(data.reply)) {
+          // call existing recommendation endpoint with simple defaults
+          try {
+            const r = await fetch("/api/ai/recommend", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat: messages }) });
+            const j = await r.json();
+            if (Array.isArray(j.suggestions)) setRecs(j.suggestions);
+          } catch {}
+        }
       }
     } catch (e) {
       setMessages((m) => [...m, { role: "assistant", content: "Sorry, something went wrong." }]);
@@ -79,6 +88,16 @@ export default function ChatBox() {
           </button>
         </div>
       </div>
+      {recs.length > 0 && (
+        <div className="border-t border-gray-300 p-4 text-sm bg-gray-50">
+          <h3 className="font-semibold mb-2">AI Recommendations</h3>
+          <ul className="list-disc pl-5 space-y-1">
+            {recs.map((r, idx) => (
+              <li key={idx}>{r.name || r.symbol || JSON.stringify(r)}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
