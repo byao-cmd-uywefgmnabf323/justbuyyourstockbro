@@ -93,8 +93,9 @@ const TERMS: Record<string, { term: string; definition: string; details: string[
   },
 };
 
-export default function AcademyTermPage({ params }: { params: { slug: string } }) {
-  const entry = TERMS[params.slug];
+export default async function AcademyTermPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const entry = TERMS[slug];
   if (!entry) return notFound();
   return (
     <main className="min-h-screen py-10">
