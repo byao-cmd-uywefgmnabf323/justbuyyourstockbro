@@ -166,8 +166,8 @@ export default function RecommendPage() {
                   {rec.fit_reason && <div className="mb-1 text-xs text-blue-800">{rec.fit_reason}</div>}
                   {rec.reasoning && <div className="text-xs text-black max-w-2xl mt-1">{rec.reasoning}</div>}
                 </div>
-                <div className="flex-1 flex items-center justify-center min-w-[180px]">
-                  <PriceChart symbol={rec.symbol} range="1M" interval="1d" height={80} />
+                <div className="flex-1 flex items-center justify-center min-w-[220px]">
+                  <PriceChart symbol={rec.symbol} range="6mo" interval="1d" height={120} showMA={false} showEMA={false} showMACD={false} showRSI={false} />
                 </div>
               </div>
             ))}

@@ -14,6 +14,7 @@ export default function ChatBox() {
   const [loading, setLoading] = useState(false);
     const router = useRouter();
   const endRef = useRef<HTMLDivElement>(null);
+  const navigatedRef = useRef(false);
 
   // auto-scroll
   useEffect(() => {
@@ -37,6 +38,8 @@ export default function ChatBox() {
         setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
         const shouldRecommend = /<\s*recommend\b/i.test(data.reply);
         if (shouldRecommend) {
+          if (navigatedRef.current) return; // prevent duplicate triggers
+          navigatedRef.current = true;
           // Persist latest chat so /recommend can refetch if needed
           const latestChat = [...messages, userMsg].slice(-10);
           try { window.sessionStorage.setItem("jbysb_last_chat", JSON.stringify(latestChat)); } catch {}
@@ -79,11 +82,14 @@ export default function ChatBox() {
   return (
     <div className="w-full max-w-xl flex flex-col border border-gray-300 bg-white min-h-[70vh]">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((m, i) => (
-          <div key={i} className={`${m.role === "user" ? "text-right" : "text-left"}`}>
-            <div className={`inline-block px-3 py-2 rounded bg-${m.role === "user" ? "black text-white" : "gray-100 text-black"}`}>{m.content}</div>
-          </div>
-        ))}
+        {messages.map((m, i) => {
+          const display = m.role === "assistant" ? m.content.replace(/<\s*recommend\s*\/?>/ig, "").trim() : m.content;
+          return (
+            <div key={i} className={`${m.role === "user" ? "text-right" : "text-left"}`}>
+              <div className={`inline-block px-3 py-2 rounded bg-${m.role === "user" ? "black text-white" : "gray-100 text-black"}`}>{display}</div>
+            </div>
+          );
+        })}
         {loading && <div className="text-left text-sm text-gray-500">Anchor is typing…</div>}
         <div ref={endRef} />
       </div>
