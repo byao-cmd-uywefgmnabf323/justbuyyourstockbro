@@ -22,22 +22,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "messages array required" }, { status: 400 });
     }
 
-    // Import openai lazily to avoid cold-start penalty if unused
-    const { ChatCompletionRequestMessage, Configuration, OpenAIApi } = await import("openai-edge");
-
-    const cfg = new Configuration({ apiKey: process.env.OPENAI_API_KEY });
-    const openai = new OpenAIApi(cfg);
-
-    const resp = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo-0125",
-      temperature: 0.7,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...messages.map((m: any) => ({ role: m.role, content: m.content })) as ChatCompletionRequestMessage[],
-      ],
+    // Call OpenAI REST API directly to avoid extra dependencies
+        const resp = await fetch("https://api.mistral.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "mistral-medium-latest",
+        temperature: 0.7,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          ...messages.map((m: any) => ({ role: m.role, content: m.content })),
+        ],
+      }),
     });
-
-    const reply = resp.data.choices[0].message?.content ?? "Sorry, I couldn't think of a reply.";
+    const data = await resp.json();
+    const reply = data.choices?.[0]?.message?.content ?? "Sorry, I couldn't think of a reply.";
     return NextResponse.json({ reply });
   } catch (e: any) {
     console.error("/api/anchor error", e);
