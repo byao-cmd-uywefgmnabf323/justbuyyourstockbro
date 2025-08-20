@@ -40,7 +40,10 @@ export async function POST(req: NextRequest) {
     });
     const data = await resp.json();
     let reply: string = data.choices?.[0]?.message?.content ?? "Sorry, I couldn't think of a reply.";
-    if (reply && !reply.includes("<RECOMMEND")) {
+    // If we're about to recommend, replace with a short handoff
+    if (reply && /<RECOMMEND/.test(reply)) {
+      reply = "Sounds good, I will now begin generating stock recommendations suited to your needs and goals.\n<RECOMMEND />";
+    } else if (reply && !reply.includes("<RECOMMEND")) {
       reply += " \n<RECOMMEND />";
     }
     return NextResponse.json({ reply });

@@ -5,6 +5,7 @@ import PriceChart from "@/components/PriceChart";
 import InfoTooltip from "@/components/InfoTooltip";
 
 export default function RecommendPage() {
+  const [showOther, setShowOther] = useState(false);
   const [results, setResults] = useState<any[]>([]);
   const [other, setOther] = useState<any[]>([]);
   const [otherLoading, setOtherLoading] = useState(false);
@@ -63,12 +64,24 @@ export default function RecommendPage() {
       {results.length>0 ? (
         <section className="mb-10">
           <h2 className="text-lg font-semibold mb-3 text-charcoal text-center">Recommendations</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="flex flex-col gap-4">
             {results.map((rec:any)=> (
-              <div key={rec.symbol} className="card text-center">
-                <div className="mb-1 text-charcoal"><span className="font-bold">{rec.symbol}</span> <span className="text-sm font-normal text-black">{rec.name}</span></div>
-                <div className="text-sm font-semibold">{rec.price? `$${rec.price.toFixed(2)}`:'—'}</div>
-                {rec.reasoning && <div className="mt-1 text-xs text-black">{rec.reasoning}</div>}
+              <div key={rec.symbol} className="flex flex-col sm:flex-row items-center bg-white border border-gray-200 rounded-lg shadow p-4 gap-4">
+                <div className="flex-1 flex flex-col items-start">
+                  <div className="text-xl font-bold text-black">{rec.symbol}</div>
+                  <div className="text-sm text-gray-600 mb-2">{rec.name}</div>
+                  <div className="flex flex-wrap gap-4 mb-2">
+                    <span className="text-lg font-semibold">{rec.price ? `$${rec.price.toFixed(2)}` : '—'}</span>
+                    <span className={typeof rec.change1D === 'string' && rec.change1D.startsWith('-') ? 'text-red-600' : 'text-green-600'}>{rec.change1D || '—'}</span>
+                    <span className="text-xs">P/E: <b>{rec.pe ?? '—'}</b></span>
+                    <span className="text-xs">EPS: <b>{rec.eps ?? '—'}</b></span>
+                    <span className="text-xs">Dividend: <b>{rec.dividendYield ?? '—'}</b></span>
+                  </div>
+                  {rec.reasoning && <div className="mt-1 text-xs text-black max-w-xl">{rec.reasoning}</div>}
+                </div>
+                <div className="w-40 min-w-[160px] h-20 flex items-center justify-center">
+                  <PriceChart symbol={rec.symbol} range="1M" interval="1d" height={60} />
+                </div>
               </div>
             ))}
           </div>
@@ -76,18 +89,30 @@ export default function RecommendPage() {
       ): <p className="text-center text-sm">No saved recommendations. Go back to chat.</p>}
 
       {other.length>0 && (
-        <section>
-          <h2 className="text-lg font-semibold mb-3 text-charcoal text-center">Other Stocks</h2>
-          {otherLoading && <p className="text-center text-xs text-gray-500 mb-2">Loading {otherLoadedCount}/{BASE_UNIVERSE.length}</p>}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {other.map(o=> (
-              <div key={o.symbol} className="card text-center">
-                <div className="font-bold text-charcoal mb-1">{o.symbol}</div>
-                <div className="text-sm font-semibold">{o.price? `$${o.price.toFixed(2)}`:'—'} <span className={String(o.change1D).startsWith('-')? 'text-red-600':'text-green-600'}>{o.change1D}</span></div>
-              </div>
-            ))}
+        <>
+          <div className="flex justify-center my-6">
+            <button
+              className="px-5 py-2 bg-gray-800 text-white rounded shadow hover:bg-gray-700"
+              onClick={() => setShowOther(true)}
+            >
+              View More
+            </button>
           </div>
-        </section>
+          {showOther && (
+            <section>
+              <h2 className="text-lg font-semibold mb-3 text-charcoal text-center">Other Stocks</h2>
+              {otherLoading && <p className="text-center text-xs text-gray-500 mb-2">Loading {otherLoadedCount}/{BASE_UNIVERSE.length}</p>}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {other.map(o=> (
+                  <div key={o.symbol} className="card text-center">
+                    <div className="font-bold text-charcoal mb-1">{o.symbol}</div>
+                    <div className="text-sm font-semibold">{o.price? `$${o.price.toFixed(2)}`:'—'} <span className={String(o.change1D).startsWith('-')? 'text-red-600':'text-green-600'}>{o.change1D}</span></div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
     </main>
   );
