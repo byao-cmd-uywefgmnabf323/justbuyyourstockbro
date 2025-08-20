@@ -92,16 +92,6 @@ export default function ChatBox() {
           </button>
         </div>
       </div>
-      {/* rec list removed */}
-        <div className="border-t border-gray-300 p-4 text-sm bg-gray-50">
-          <h3 className="font-semibold mb-2">AI Recommendations</h3>
-          <ul className="list-disc pl-5 space-y-1">
-            {recs.map((r, idx) => (
-              <li key={idx}>{r.name || r.symbol || JSON.stringify(r)}</li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }
