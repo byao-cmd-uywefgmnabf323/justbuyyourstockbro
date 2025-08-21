@@ -276,10 +276,10 @@ export default function RecommendPage() {
                       1D: {rec.change1D || '—'}
                     </span>
                     <span>
-                      1W: {rec.change1W || '—'}
+                      1W: {typeof rec.change1W === 'string' ? rec.change1W : (typeof rec.change1W === 'number' ? `${rec.change1W > 0 ? '+' : ''}${rec.change1W.toFixed(2)}%` : '—')}
                     </span>
                     <span>
-                      1M: {rec.change1M || '—'}
+                      1M: {typeof rec.change1M === 'string' ? rec.change1M : (typeof rec.change1M === 'number' ? `${rec.change1M > 0 ? '+' : ''}${rec.change1M.toFixed(2)}%` : '—')}
                     </span>
                     <span>
                       <InlineDef label="P/E" term="P/E Ratio" definition="P/E compares a company’s price to its earnings; lower can imply cheaper valuation." href="/academy/pe-ratio" />
@@ -293,19 +293,19 @@ export default function RecommendPage() {
                     </span>
                     <span>
                       <InlineDef label="Div Yield" term="Dividend Yield" definition="Annual dividends as a percentage of the share price." href="/academy/dividend-yield" />{' '}
-                      <b>{rec.dividendYield ?? rec.dy ?? '—'}</b>
+                      <b>{rec.dividendYield !== undefined ? rec.dividendYield : (rec.dy !== undefined ? rec.dy : '—')}</b>
                     </span>
                     <span>
                       <InlineDef label="Beta" term="Beta" definition="Beta measures a stock’s volatility vs. the market; 0.8 ≈ 20% less volatile than average." href="/academy/beta" />{' '}
-                      <b>{rec.beta ?? '—'}</b>
+                      <b>{rec.beta !== undefined ? rec.beta : '—'}</b>
                     </span>
                     <span>
                       <InlineDef label="52W High" term="52-Week High" definition="The highest trading price over the last 52 weeks." href="/academy/52-week-range" />{' '}
-                      <b>{rec.high52w ?? '—'}</b>
+                      <b>{rec.high52w !== undefined ? rec.high52w : '—'}</b>
                     </span>
                     <span>
                       <InlineDef label="52W Low" term="52-Week Low" definition="The lowest trading price over the last 52 weeks." href="/academy/52-week-range" />{' '}
-                      <b>{rec.low52w ?? '—'}</b>
+                      <b>{rec.low52w !== undefined ? rec.low52w : '—'}</b>
                     </span>
                   </div>
                   {rec.fit_reason && <div className="mb-1 text-xs text-blue-800">{rec.fit_reason}</div>}
