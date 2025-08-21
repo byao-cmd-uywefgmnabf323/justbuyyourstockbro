@@ -54,25 +54,25 @@ export default function RecommendPage() {
   // Fetch live quotes for the given symbols and merge into results
   const refreshQuotesForResults = async (baseResults: any[]) => {
     if (!baseResults || baseResults.length === 0) return baseResults;
-    const symbols = baseResults.map((r:any)=>r.symbol).filter(Boolean);
+    const symbols = baseResults.map((r:any)=> (r as any).symbol).filter(Boolean);
     if (!symbols.length) return baseResults;
     try {
       const res = await fetch(`/api/market/quote?symbols=${encodeURIComponent(symbols.join(","))}&_=${Date.now()}`, { cache: "no-store" });
       const j = await res.json();
       if (!Array.isArray(j.items)) return baseResults;
-      const liveMap = new Map(j.items.map((q:any)=>[q.symbol, q]));
+      const liveMap = new Map(j.items.map((q:any)=>[(q as any).symbol, q]));
       return baseResults.map((r:any)=>{
-        const live = liveMap.get(r.symbol);
+        const live = liveMap.get((r as any).symbol);
         if (!live) return r;
         return {
-          ...r,
-          price: Number.isFinite(live.price) ? live.price : r.price,
-          change1D: typeof live.changePercent==='number'? `${live.changePercent.toFixed(2)}%` : r.change1D,
-          pe: typeof live.trailingPE==='number' && isFinite(live.trailingPE) ? live.trailingPE : r.pe,
-          eps: typeof live.epsTTM==='number' && isFinite(live.epsTTM) ? live.epsTTM : r.eps,
-          dy: typeof live.dividendYield==='number' && isFinite(live.dividendYield) ? live.dividendYield : r.dy,
-          high52w: typeof live.fiftyTwoWeekHigh==='number' ? live.fiftyTwoWeekHigh : r.high52w,
-          low52w: typeof live.fiftyTwoWeekLow==='number' ? live.fiftyTwoWeekLow : r.low52w,
+          ...(r as any),
+          price: Number.isFinite((live as any).price) ? (live as any).price : (r as any).price,
+          change1D: typeof (live as any).changePercent==='number'? `${(live as any).changePercent.toFixed(2)}%` : (r as any).change1D,
+          pe: typeof (live as any).trailingPE==='number' && isFinite((live as any).trailingPE) ? (live as any).trailingPE : (r as any).pe,
+          eps: typeof (live as any).epsTTM==='number' && isFinite((live as any).epsTTM) ? (live as any).epsTTM : (r as any).eps,
+          dy: typeof (live as any).dividendYield==='number' && isFinite((live as any).dividendYield) ? (live as any).dividendYield : (r as any).dy,
+          high52w: typeof (live as any).fiftyTwoWeekHigh==='number' ? (live as any).fiftyTwoWeekHigh : (r as any).high52w,
+          low52w: typeof (live as any).fiftyTwoWeekLow==='number' ? (live as any).fiftyTwoWeekLow : (r as any).low52w,
         };
       });
     } catch { return baseResults; }
