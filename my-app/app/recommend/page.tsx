@@ -217,7 +217,7 @@ export default function RecommendPage() {
     let cancelled = false;
     (async () => {
       const merged = await refreshQuotesForResults(results);
-      if (!cancelled) setResults(merged);
+      if (!cancelled) setResults(Array.isArray(merged) ? merged : []);
     })();
     return () => { cancelled = true; };
   }, [results && results.map(r=>r.symbol).join(",")]);
@@ -228,7 +228,7 @@ export default function RecommendPage() {
     let cancelled = false;
     const interval = setInterval(async () => {
       const merged = await refreshQuotesForResults(results);
-      if (!cancelled) setResults(merged);
+      if (!cancelled) setResults(Array.isArray(merged) ? merged : []);
     }, 1000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [results && results.map(r=>r.symbol).join(",")]);
