@@ -179,6 +179,17 @@ export default function RecommendPage() {
     return () => { cancelled = true; };
   }, [results && results.map(r=>r.symbol).join(",")]);
 
+  // Refresh all recommendation data every second for real-time sync with Yahoo Finance
+  useEffect(() => {
+    if (!results || results.length === 0) return;
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      const merged = await refreshQuotesForResults(results);
+      if (!cancelled) setResults(merged);
+    }, 1000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [results && results.map(r=>r.symbol).join(",")]);
+
   return (
     <main className="min-h-screen py-10 px-4 bg-background">
       <h1 className="text-2xl font-bold text-center mb-6 text-charcoal">Your AI-Tailored Stock Ideas</h1>
