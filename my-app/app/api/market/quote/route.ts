@@ -252,7 +252,7 @@ export async function GET(req: Request) {
             const hres = await fetch(`${origin}/api/market/history?symbol=${encodeURIComponent(s)}&range=5d&interval=1d&_=${Date.now()}`, { cache: "no-store" });
             if (!hres.ok) continue;
             const hjson = await hres.json();
-            const candles = Array.isArray(hjson?.candles) ? hjson.candles : [];
+            const candles = Array.isArray(hjson?.items) ? hjson.items : (Array.isArray(hjson?.candles) ? hjson.candles : []);
             if (candles.length) {
               const last = candles[candles.length - 1];
               const c = Number(last?.c);
