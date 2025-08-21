@@ -60,6 +60,7 @@ export default function RecommendPage() {
       // Fetch all quotes in one call
       const res = await fetch(`/api/market/quote?symbols=${encodeURIComponent(symbols.join(","))}&_=${Date.now()}`, { cache: "no-store" });
       const j = await res.json();
+      if (typeof window !== 'undefined') alert('QUOTE API RESPONSE: ' + JSON.stringify(j));
       if (!Array.isArray(j.items)) return baseResults;
       const liveMap = new Map(j.items.map((q:any)=>[(q as any).symbol, q]));
       // Fetch all historicals in parallel
@@ -67,11 +68,12 @@ export default function RecommendPage() {
         try {
           const hres = await fetch(`/api/market/history?symbol=${encodeURIComponent(sym)}&range=1mo&interval=1d&_=${Date.now()}`);
           const hj = await hres.json();
+          if (typeof window !== 'undefined') alert('HISTORY API RESPONSE ' + sym + ': ' + JSON.stringify(hj));
           return { symbol: sym, candles: Array.isArray(hj.items) ? hj.items : [] };
         } catch { return { symbol: sym, candles: [] }; }
       }));
       const historyMap = new Map(histories.map(h => [h.symbol, h.candles]));
-      return baseResults.map((r:any) => {
+      const merged = baseResults.map((r:any) => {
         const sym = (r as any).symbol;
         const live = liveMap.get(sym);
         const candles = historyMap.get(sym) || [];

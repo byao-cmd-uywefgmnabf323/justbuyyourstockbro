@@ -143,6 +143,9 @@ export async function GET(req: Request) {
             trailingPE: typeof q.trailingPE === 'number' ? q.trailingPE : undefined,
             epsTTM: typeof q.epsTrailingTwelveMonths === 'number' ? q.epsTrailingTwelveMonths : undefined,
             dividendYield: typeof q.trailingAnnualDividendYield === 'number' ? q.trailingAnnualDividendYield * 100 : undefined,
+            beta: typeof q.beta === 'number' ? q.beta : undefined,
+            fiftyTwoWeekHigh: typeof q.fiftyTwoWeekHigh === 'number' ? q.fiftyTwoWeekHigh : undefined,
+            fiftyTwoWeekLow: typeof q.fiftyTwoWeekLow === 'number' ? q.fiftyTwoWeekLow : undefined,
           };
         });
         // Fallback: if this batch yielded no items, try per-symbol fetches

@@ -28,7 +28,7 @@ export async function GET(req: Request) {
       c: closes[i],
     })).filter((d) => Number.isFinite(d.c));
 
-    return NextResponse.json({ candles });
+    return NextResponse.json({ items: candles });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "failed" }, { status: 500 });
   }
