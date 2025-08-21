@@ -43,7 +43,7 @@ export default function PriceChart({ symbol, range = "6mo", interval = "1d", hei
         const res = await fetch(`/api/market/history?symbol=${encodeURIComponent(symbol)}&range=${encodeURIComponent(range)}&interval=${encodeURIComponent(interval)}`);
         if (!res.ok) throw new Error("failed");
         const json = await res.json();
-        if (mounted) setData(json.candles || []);
+        if (mounted) setData(Array.isArray(json.items) ? json.items : (json.candles || []));
       } catch (e: any) {
         if (mounted) setError(e?.message || "Failed to load chart");
       } finally {
