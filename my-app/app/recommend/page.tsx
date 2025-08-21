@@ -51,6 +51,33 @@ export default function RecommendPage() {
     } finally { setOtherLoading(false); }
   };
 
+  // Fetch live quotes for the given symbols and merge into results
+  const refreshQuotesForResults = async (baseResults: any[]) => {
+    if (!baseResults || baseResults.length === 0) return baseResults;
+    const symbols = baseResults.map((r:any)=>r.symbol).filter(Boolean);
+    if (!symbols.length) return baseResults;
+    try {
+      const res = await fetch(`/api/market/quote?symbols=${encodeURIComponent(symbols.join(","))}&_=${Date.now()}`, { cache: "no-store" });
+      const j = await res.json();
+      if (!Array.isArray(j.items)) return baseResults;
+      const liveMap = new Map(j.items.map((q:any)=>[q.symbol, q]));
+      return baseResults.map((r:any)=>{
+        const live = liveMap.get(r.symbol);
+        if (!live) return r;
+        return {
+          ...r,
+          price: Number.isFinite(live.price) ? live.price : r.price,
+          change1D: typeof live.changePercent==='number'? `${live.changePercent.toFixed(2)}%` : r.change1D,
+          pe: typeof live.trailingPE==='number' && isFinite(live.trailingPE) ? live.trailingPE : r.pe,
+          eps: typeof live.epsTTM==='number' && isFinite(live.epsTTM) ? live.epsTTM : r.eps,
+          dy: typeof live.dividendYield==='number' && isFinite(live.dividendYield) ? live.dividendYield : r.dy,
+          high52w: typeof live.fiftyTwoWeekHigh==='number' ? live.fiftyTwoWeekHigh : r.high52w,
+          low52w: typeof live.fiftyTwoWeekLow==='number' ? live.fiftyTwoWeekLow : r.low52w,
+        };
+      });
+    } catch { return baseResults; }
+  };
+
   // helper to refetch from session chat on demand
   const refetchFromSession = async () => {
     const chatRaw = window.sessionStorage.getItem("jbysb_last_chat");
@@ -61,14 +88,16 @@ export default function RecommendPage() {
       const r = await fetch("/api/ai/recommend", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat }) });
       const j = await r.json();
       if (Array.isArray(j.suggestions) && j.suggestions.length) {
-        setResults(j.suggestions);
-        try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(j.suggestions)); } catch {}
+        const merged = await refreshQuotesForResults(j.suggestions);
+        setResults(merged);
+        try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(merged)); } catch {}
         loadBaseline(j.suggestions.map((r:any)=>String(r.symbol)));
       }
     } finally {
       setRecLoading(false);
     }
   };
+
 
   useEffect(()=>{
     const init = async () => {
@@ -138,6 +167,17 @@ export default function RecommendPage() {
     };
     init();
   },[]);
+
+  // Always update results with live quote data for accurate price/quantitative info
+  useEffect(() => {
+    if (!results || results.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const merged = await refreshQuotesForResults(results);
+      if (!cancelled) setResults(merged);
+    })();
+    return () => { cancelled = true; };
+  }, [results && results.map(r=>r.symbol).join(",")]);
 
   return (
     <main className="min-h-screen py-10 px-4 bg-background">
