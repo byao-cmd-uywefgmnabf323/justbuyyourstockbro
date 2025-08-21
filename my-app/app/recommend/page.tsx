@@ -84,38 +84,16 @@ export default function RecommendPage() {
           const last = closes[closes.length-1];
           const prev = closes[closes.length-2];
           if (typeof last==='number' && typeof prev==='number' && prev!==0) {
-            change1D = `${(((last-prev)/prev)*100).toFixed(2)}%`;
-          }
-          if (closes.length >= 6) {
-            const prevW = closes[closes.length-6];
-            if (typeof prevW==='number' && prevW!==0) {
-              change1W = `${(((last-prevW)/prevW)*100).toFixed(2)}%`;
-            }
-          }
-          if (closes.length >= 21) {
-            const prevM = closes[closes.length-21];
-            if (typeof prevM==='number' && prevM!==0) {
-              change1M = `${(((last-prevM)/prevM)*100).toFixed(2)}%`;
-            }
-          }
-        }
         return {
-          symbol: sym,
-          name: (live as any)?.longName || (live as any)?.shortName || sym,
-          price: Number.isFinite((live as any)?.price) ? (live as any).price : undefined,
-          change1D,
-          change1W,
-          change1M,
-          pe: typeof (live as any)?.trailingPE==='number' && isFinite((live as any).trailingPE) ? (live as any).trailingPE : undefined,
-          eps: typeof (live as any)?.epsTTM==='number' && isFinite((live as any).epsTTM) ? (live as any).epsTTM : undefined,
-          dividendYield: typeof (live as any)?.dividendYield==='number' && isFinite((live as any).dividendYield) ? (live as any).dividendYield : undefined,
-          beta: typeof (live as any)?.beta==='number' && isFinite((live as any).beta) ? (live as any).beta : undefined,
-          high52w: typeof (live as any)?.fiftyTwoWeekHigh==='number' ? (live as any).fiftyTwoWeekHigh : undefined,
-          low52w: typeof (live as any)?.fiftyTwoWeekLow==='number' ? (live as any).fiftyTwoWeekLow : undefined,
-          reasoning: r.reasoning,
-          fit_reason: r.fit_reason,
-          signal: r.signal,
-          type: r.type,
+          ...(r as any),
+          price: Number.isFinite((live as any).price) ? (live as any).price : (r as any).price,
+          change1D: typeof (live as any).changePercent==='number'? `${(live as any).changePercent.toFixed(2)}%` : (r as any).change1D,
+          pe: typeof (live as any).trailingPE==='number' && isFinite((live as any).trailingPE) ? (live as any).trailingPE : (r as any).pe,
+          eps: typeof (live as any).epsTTM==='number' && isFinite((live as any).epsTTM) ? (live as any).epsTTM : (r as any).eps,
+          dividendYield: typeof (live as any).dividendYield==='number' && isFinite((live as any).dividendYield) ? (live as any).dividendYield : (r as any).dividendYield,
+          beta: typeof (live as any).beta==='number' && isFinite((live as any).beta) ? (live as any).beta : (r as any).beta,
+          high52w: typeof (live as any).fiftyTwoWeekHigh==='number' ? (live as any).fiftyTwoWeekHigh : (r as any).high52w,
+          low52w: typeof (live as any).fiftyTwoWeekLow==='number' ? (live as any).fiftyTwoWeekLow : (r as any).low52w,
         };
       });
     } catch { return baseResults; }
