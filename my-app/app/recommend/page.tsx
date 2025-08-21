@@ -76,18 +76,6 @@ export default function RecommendPage() {
           low52w: typeof (live as any).fiftyTwoWeekLow==='number' ? (live as any).fiftyTwoWeekLow : (r as any).low52w,
         };
       });
-        return {
-          ...(r as any),
-          price: Number.isFinite((live as any).price) ? (live as any).price : (r as any).price,
-          change1D: typeof (live as any).changePercent==='number'? `${(live as any).changePercent.toFixed(2)}%` : (r as any).change1D,
-          pe: typeof (live as any).trailingPE==='number' && isFinite((live as any).trailingPE) ? (live as any).trailingPE : (r as any).pe,
-          eps: typeof (live as any).epsTTM==='number' && isFinite((live as any).epsTTM) ? (live as any).epsTTM : (r as any).eps,
-          dividendYield: typeof (live as any).dividendYield==='number' && isFinite((live as any).dividendYield) ? (live as any).dividendYield : (r as any).dividendYield,
-          beta: typeof (live as any).beta==='number' && isFinite((live as any).beta) ? (live as any).beta : (r as any).beta,
-          high52w: typeof (live as any).fiftyTwoWeekHigh==='number' ? (live as any).fiftyTwoWeekHigh : (r as any).high52w,
-          low52w: typeof (live as any).fiftyTwoWeekLow==='number' ? (live as any).fiftyTwoWeekLow : (r as any).low52w,
-        };
-      });
     } catch { return baseResults; }
   };
 
