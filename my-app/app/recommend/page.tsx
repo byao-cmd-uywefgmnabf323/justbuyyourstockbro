@@ -246,7 +246,9 @@ export default function RecommendPage() {
                     <ProjectionTool symbol={rec.symbol} currentPrice={rec.price} />
                   </details>
                 </div>
-                
+                <div className="md:col-span-2 mt-1">
+                  <a className="text-sm underline" href={`/symbol/${encodeURIComponent(rec.symbol)}`}>Open</a>
+                </div>
               </div>
             ))}
           </div>
