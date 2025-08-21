@@ -33,7 +33,7 @@ export default function RecommendPage() {
       const universe = BASE_UNIVERSE.filter((s) => !exclude.has(s));
       if (!universe.length) { setOther([]); return; }
       const placeholders = universe.map((s) => ({ symbol: s, price: null, change1D: "—" }));
-      setOther(placeholders);
+      setOther(Array.isArray(placeholders) ? placeholders : []);
       setOtherLoading(true);
       const loaded: any[] = [];
       await Promise.all(universe.map(async (sym) => {
@@ -47,7 +47,7 @@ export default function RecommendPage() {
         } catch {}
       }));
       const merged = universe.map((s) => loaded.find(l=>l.symbol===s) || placeholders.find(p=>p.symbol===s));
-      setOther(merged as any[]);
+      setOther(Array.isArray(merged) ? merged : []);
     } finally { setOtherLoading(false); }
   };
 
@@ -132,7 +132,7 @@ export default function RecommendPage() {
       const j = await r.json();
       if (Array.isArray(j.suggestions) && j.suggestions.length) {
         const merged = await refreshQuotesForResults(j.suggestions);
-        setResults(merged);
+        setResults(Array.isArray(merged) ? merged : []);
         try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(merged)); } catch {}
         loadBaseline(j.suggestions.map((r:any)=>String(r.symbol)));
       }
