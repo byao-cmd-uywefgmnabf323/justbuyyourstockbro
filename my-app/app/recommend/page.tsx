@@ -150,9 +150,20 @@ export default function RecommendPage() {
             <form
               onSubmit={(e)=>{e.preventDefault(); (async()=>{
                 const raw = searchQuery.trim();
-                if (!raw) return; const symbols = raw.split(/[ ,\n\t]+/).filter(Boolean).slice(0,10);
+                if (!raw) return;
+                const tokens = raw.split(/[ ,\n\t]+/).filter(Boolean).slice(0,10);
+                const looksLikeTicker = (s: string) => /^[A-Z0-9=.-]+$/.test(s) && s.toUpperCase() === s;
+                let symbols = tokens.filter(t => looksLikeTicker(t)).map(t=>t.toUpperCase());
                 setSearchLoading(true); setSearchResults([]);
                 try {
+                  if (symbols.length === 0) {
+                    // Fallback to name search
+                    const sres = await fetch(`/api/market/search?q=${encodeURIComponent(raw)}&_=${Date.now()}`, { cache: 'no-store' });
+                    const sj = await sres.json();
+                    const syms = Array.isArray(sj.items) ? sj.items.map((i:any)=>i.symbol) : [];
+                    symbols = syms.slice(0, 5);
+                  }
+                  if (symbols.length === 0) { setSearchResults([]); return; }
                   const res = await fetch(`/api/market/quote?symbols=${encodeURIComponent(symbols.join(","))}&_=${Date.now()}`, { cache: "no-store" });
                   const j = await res.json();
                   const items = Array.isArray(j.items) ? j.items : [];
@@ -186,6 +197,29 @@ export default function RecommendPage() {
               <button type="submit" className="px-4 py-2 bg-black text-white text-sm">Search</button>
             </form>
             {searchLoading && <div className="mt-2 text-center text-xs text-black">Searching…</div>}
+            {!searchLoading && searchResults.length > 0 && (
+              <div className="mt-3 grid grid-cols-1 gap-3">
+                {searchResults.map((sr:any) => (
+                  <div key={`sr-${sr.symbol}`} className="flex flex-col md:flex-row items-stretch bg-white border border-gray-200 rounded p-3 gap-3">
+                    <div className="flex-1">
+                      <div className="text-lg font-semibold text-black">
+                        {sr.symbol} <span className="text-sm font-normal text-gray-800">{sr.name}</span>
+                      </div>
+                      <div className="mt-1 text-sm">
+                        <span className="font-semibold">{Number.isFinite(sr.price)? `$${sr.price.toFixed(2)}` : '—'}</span>
+                        <span className={`ml-2 ${String(sr.change1D || '').startsWith('-')? 'text-red-600':'text-green-600'}`}>{sr.change1D || '—'}</span>
+                      </div>
+                      <div className="mt-2">
+                        <a className="text-sm underline" href={`/symbol/${encodeURIComponent(sr.symbol)}`}>Open</a>
+                      </div>
+                    </div>
+                    <div className="min-w-[220px] flex items-center justify-center">
+                      <PriceChart symbol={sr.symbol} range="6mo" interval="1d" height={100} showMA={false} showEMA={false} showMACD={false} showRSI={false} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-4">
             {results.map((rec:any)=> (
