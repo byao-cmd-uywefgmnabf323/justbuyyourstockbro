@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 const YAHOO_QUOTE = "https://query1.finance.yahoo.com/v7/finance/quote";
+const YAHOO_QUOTE_SUMMARY = (s: string) => `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(s)}?modules=price,summaryDetail,defaultKeyStatistics`;
 const STOOQ_JSON = (s: string) => `https://stooq.com/q/l/?s=${encodeURIComponent(s)}&f=sd2t2ohlcv&h&e=json`;
 const COINGECKO_SIMPLE = (ids: string[]) => `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(ids.join(","))}&vs_currencies=usd`;
 
@@ -52,6 +53,84 @@ async function fetchFromStooq(symbol: string) {
       currency: "USD",
     };
   } catch { return null; }
+
+async function fetchYahooQuoteSummary(symbol: string) {
+  try {
+    let res: Response | null = null;
+    let lastErr: any = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        res = await fetch(YAHOO_QUOTE_SUMMARY(symbol), {
+          headers: { "User-Agent": "justbuyyourstockbro", "Accept": "application/json" },
+          cache: "no-store",
+        });
+        if (res.ok) break;
+        lastErr = new Error(`Yahoo quoteSummary failed: ${res.status}`);
+      } catch (e) { lastErr = e; }
+      await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+    }
+    if (!res || !res.ok) throw lastErr || new Error("quoteSummary failed");
+    const j = await res.json();
+    const r = j?.quoteSummary?.result?.[0];
+    if (!r) return null;
+    const price = r.price || {};
+    const sd = r.summaryDetail || {};
+    const ks = r.defaultKeyStatistics || {};
+    const out: any = {
+      symbol,
+      shortName: price.shortName,
+      longName: price.longName,
+      trailingPE: typeof (ks.trailingPE?.raw) === 'number' ? ks.trailingPE.raw : (typeof sd.trailingPE?.raw === 'number' ? sd.trailingPE.raw : undefined),
+      epsTTM: typeof (ks.trailingEps?.raw) === 'number' ? ks.trailingEps.raw : undefined,
+      dividendYield: typeof (sd.dividendYield?.raw) === 'number' ? sd.dividendYield.raw * 100 : undefined,
+      beta: typeof (ks.beta?.raw) === 'number' ? ks.beta.raw : undefined,
+      fiftyTwoWeekHigh: typeof (sd.fiftyTwoWeekHigh?.raw) === 'number' ? sd.fiftyTwoWeekHigh.raw : (typeof price.fiftyTwoWeekHigh?.raw === 'number' ? price.fiftyTwoWeekHigh.raw : undefined),
+      fiftyTwoWeekLow: typeof (sd.fiftyTwoWeekLow?.raw) === 'number' ? sd.fiftyTwoWeekLow.raw : (typeof price.fiftyTwoWeekLow?.raw === 'number' ? price.fiftyTwoWeekLow.raw : undefined),
+      currency: price.currency,
+    };
+    return out;
+  } catch { return null; }
+}
+
+async function enrichWithQuoteSummary(items: any[]) {
+  const out = [...items];
+  const missingIdxs: number[] = [];
+  for (let i = 0; i < out.length; i++) {
+    const it = out[i];
+    const lacks = (
+      it == null ||
+      (typeof it.trailingPE !== 'number') ||
+      (typeof it.epsTTM !== 'number') ||
+      (typeof it.dividendYield !== 'number') ||
+      (typeof it.beta !== 'number') ||
+      (typeof it.fiftyTwoWeekHigh !== 'number') ||
+      (typeof it.fiftyTwoWeekLow !== 'number') ||
+      (!it.longName && !it.shortName)
+    );
+    if (lacks) missingIdxs.push(i);
+  }
+  for (const i of missingIdxs) {
+    const sym = out[i]?.symbol;
+    if (!sym) continue;
+    // small pacing
+    await new Promise((r) => setTimeout(r, 80));
+    const s = await fetchYahooQuoteSummary(sym);
+    if (s) {
+      out[i] = {
+        ...out[i],
+        longName: out[i].longName ?? s.longName,
+        shortName: out[i].shortName ?? s.shortName,
+        trailingPE: typeof out[i].trailingPE === 'number' ? out[i].trailingPE : s.trailingPE,
+        epsTTM: typeof out[i].epsTTM === 'number' ? out[i].epsTTM : s.epsTTM,
+        dividendYield: typeof out[i].dividendYield === 'number' ? out[i].dividendYield : s.dividendYield,
+        beta: typeof out[i].beta === 'number' ? out[i].beta : s.beta,
+        fiftyTwoWeekHigh: typeof out[i].fiftyTwoWeekHigh === 'number' ? out[i].fiftyTwoWeekHigh : s.fiftyTwoWeekHigh,
+        fiftyTwoWeekLow: typeof out[i].fiftyTwoWeekLow === 'number' ? out[i].fiftyTwoWeekLow : s.fiftyTwoWeekLow,
+        currency: out[i].currency ?? s.currency,
+      };
+    }
+  }
+  return out;
 }
 
 async function fetchFromCoinGecko(symbols: string[]) {
@@ -263,11 +342,17 @@ export async function GET(req: Request) {
           } catch {}
         }
       } catch {}
-      if (out.length) return NextResponse.json({ items: out });
+      if (out.length) {
+        // Enrich fundamentals where possible
+        const enrichedOut = await enrichWithQuoteSummary(out);
+        return NextResponse.json({ items: enrichedOut });
+      }
       // Soft-fail: return 200 with empty items and an error message for clients to handle gracefully
       return NextResponse.json({ items: [], error: errors.join("; ") || "failed" });
     }
-    return NextResponse.json({ items: allItems });
+    // Enrich fundamentals for items missing fields
+    const enriched = await enrichWithQuoteSummary(allItems);
+    return NextResponse.json({ items: enriched });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "failed" }, { status: 500 });
   }
