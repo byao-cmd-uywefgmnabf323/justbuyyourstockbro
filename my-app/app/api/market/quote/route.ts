@@ -165,7 +165,7 @@ export async function GET(req: Request) {
 
     const symbols = symbolsStr.split(",").map((s) => s.trim()).filter(Boolean);
     const chunks: string[][] = [];
-    const size = 5; // smaller batches to reduce throttling
+    const size = 1; // single-symbol batches to avoid throttling and data omissions
     for (let i = 0; i < symbols.length; i += size) chunks.push(symbols.slice(i, i + size));
 
     const allItems: any[] = [];
