@@ -64,19 +64,36 @@ export default function RecommendPage() {
         if (!res.ok) return;
         const j = await res.json();
         const candles: any[] = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.candles) ? j.candles : []);
-        const closes = candles.map((c:any)=> Number(c?.c)).filter((v:number)=> Number.isFinite(v));
-        const n = closes.length;
+        // Prefer adjusted close when available
+        let series = candles.map((c:any)=> {
+          const a = Number(c?.a);
+          const cclose = Number(c?.c);
+          return Number.isFinite(a) ? a : cclose;
+        }).filter((v:number)=> Number.isFinite(v));
+        // Exclude today's potentially incomplete candle based on UTC date
+        if (Array.isArray(candles) && candles.length) {
+          const lastT = Number(candles[candles.length - 1]?.t);
+          if (Number.isFinite(lastT)) {
+            const now = new Date();
+            const lastD = new Date(lastT);
+            if (lastD.getUTCFullYear() === now.getUTCFullYear() && lastD.getUTCMonth() === now.getUTCMonth() && lastD.getUTCDate() === now.getUTCDate()) {
+              // drop last element in series
+              series = series.slice(0, -1);
+            }
+          }
+        }
+        const n = series.length;
         if (n === 0) return;
-        const last = closes[n-1];
+        const last = series[n-1];
         const wIdx = n - 1 - 5; // ~1W back (5 trading days)
         const mIdx = n - 1 - 21; // ~1M back (21 trading days)
         let change1W: number | undefined = undefined;
         let change1M: number | undefined = undefined;
-        if (wIdx >= 0 && Number.isFinite(closes[wIdx]) && closes[wIdx] !== 0) {
-          change1W = ((last - closes[wIdx]) / closes[wIdx]) * 100;
+        if (wIdx >= 0 && Number.isFinite(series[wIdx]) && series[wIdx] !== 0) {
+          change1W = ((last - series[wIdx]) / series[wIdx]) * 100;
         }
-        if (mIdx >= 0 && Number.isFinite(closes[mIdx]) && closes[mIdx] !== 0) {
-          change1M = ((last - closes[mIdx]) / closes[mIdx]) * 100;
+        if (mIdx >= 0 && Number.isFinite(series[mIdx]) && series[mIdx] !== 0) {
+          change1M = ((last - series[mIdx]) / series[mIdx]) * 100;
         }
         const idx = indexBySymbol.get(sym);
         if (idx !== undefined) {

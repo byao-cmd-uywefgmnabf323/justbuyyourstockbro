@@ -29,6 +29,15 @@ const mapStooqSymbol = (sym: string): string | null => {
   return `${s.toLowerCase()}.us`;
 };
 
+// Heuristic to detect equity symbols (non-crypto/forex/indices)
+const isEquitySymbol = (sym: string): boolean => {
+  const s = String(sym || '').trim();
+  if (!s) return false;
+  if (s.includes("-") || s.includes("=")) return false; // crypto/forex
+  if (s.startsWith("^")) return false; // indices
+  return true;
+};
+
 async function fetchFromStooq(symbol: string) {
   try {
     const mapped = mapStooqSymbol(symbol);
@@ -98,6 +107,8 @@ async function enrichWithQuoteSummary(items: any[]) {
   const missingIdxs: number[] = [];
   for (let i = 0; i < out.length; i++) {
     const it = out[i];
+    const equ = isEquitySymbol(it?.symbol);
+    // Always enrich equities; for others, enrich only if missing
     const lacks = (
       it == null ||
       (typeof it.trailingPE !== 'number') ||
@@ -108,7 +119,7 @@ async function enrichWithQuoteSummary(items: any[]) {
       (typeof it.fiftyTwoWeekLow !== 'number') ||
       (!it.longName && !it.shortName)
     );
-    if (lacks) missingIdxs.push(i);
+    if (equ || lacks) missingIdxs.push(i);
   }
   for (const i of missingIdxs) {
     const sym = out[i]?.symbol;

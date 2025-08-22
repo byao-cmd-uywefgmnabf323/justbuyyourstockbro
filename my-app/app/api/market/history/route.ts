@@ -22,11 +22,13 @@ export async function GET(req: Request) {
     const result = data?.chart?.result?.[0];
     const timestamps: number[] = result?.timestamp || [];
     const closes: number[] = result?.indicators?.quote?.[0]?.close || [];
+    const adj: number[] = result?.indicators?.adjclose?.[0]?.adjclose || [];
 
     const candles = timestamps.map((t, i) => ({
       t: t * 1000,
       c: closes[i],
-    })).filter((d) => Number.isFinite(d.c));
+      a: typeof adj[i] === 'number' ? adj[i] : undefined,
+    })).filter((d) => Number.isFinite(d.c) || Number.isFinite(d.a as number));
 
     return NextResponse.json({ items: candles });
   } catch (e: any) {
