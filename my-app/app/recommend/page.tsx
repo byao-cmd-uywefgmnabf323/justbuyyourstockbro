@@ -51,6 +51,47 @@ export default function RecommendPage() {
     } finally { setOtherLoading(false); }
   };
 
+  // Compute 1W and 1M percent changes from daily history (approx 5 and 21 trading days)
+  const computeAndMergePeriodChanges = async (baseResults: any[]) => {
+    if (!Array.isArray(baseResults) || baseResults.length === 0) return baseResults;
+    const symbols = Array.from(new Set(baseResults.map((r:any)=>String(r.symbol)).filter(Boolean)));
+    const updated = [...baseResults];
+    const indexBySymbol = new Map<string, number>();
+    updated.forEach((r:any, i:number)=> indexBySymbol.set(String(r.symbol), i));
+    await Promise.all(symbols.map(async (sym) => {
+      try {
+        const res = await fetch(`/api/market/history?symbol=${encodeURIComponent(sym)}&range=2mo&interval=1d&_=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const j = await res.json();
+        const candles: any[] = Array.isArray(j?.items) ? j.items : (Array.isArray(j?.candles) ? j.candles : []);
+        const closes = candles.map((c:any)=> Number(c?.c)).filter((v:number)=> Number.isFinite(v));
+        const n = closes.length;
+        if (n === 0) return;
+        const last = closes[n-1];
+        const wIdx = n - 1 - 5; // ~1W back (5 trading days)
+        const mIdx = n - 1 - 21; // ~1M back (21 trading days)
+        let change1W: number | undefined = undefined;
+        let change1M: number | undefined = undefined;
+        if (wIdx >= 0 && Number.isFinite(closes[wIdx]) && closes[wIdx] !== 0) {
+          change1W = ((last - closes[wIdx]) / closes[wIdx]) * 100;
+        }
+        if (mIdx >= 0 && Number.isFinite(closes[mIdx]) && closes[mIdx] !== 0) {
+          change1M = ((last - closes[mIdx]) / closes[mIdx]) * 100;
+        }
+        const idx = indexBySymbol.get(sym);
+        if (idx !== undefined) {
+          const existing = updated[idx];
+          updated[idx] = {
+            ...existing,
+            change1W: Number.isFinite(change1W as number) ? (change1W as number) : existing.change1W,
+            change1M: Number.isFinite(change1M as number) ? (change1M as number) : existing.change1M,
+          };
+        }
+      } catch {}
+    }));
+    return updated;
+  };
+
   // Fetch live quotes for the given symbols and merge into results
   const refreshQuotesForResults = async (baseResults: any[]) => {
     if (!baseResults || baseResults.length === 0) return baseResults;
@@ -122,6 +163,7 @@ export default function RecommendPage() {
           const arr = JSON.parse(saved);
           if (Array.isArray(arr) && arr.length > 0) {
             setResults(arr);
+            try { setResults(await computeAndMergePeriodChanges(arr)); } catch {}
             loadBaseline(arr.map((r:any)=>String(r.symbol)));
             baselineLoaded = true;
           }
@@ -137,6 +179,7 @@ export default function RecommendPage() {
               const j = await r.json();
               if (Array.isArray(j.suggestions) && j.suggestions.length) {
                 setResults(j.suggestions);
+                try { setResults(await computeAndMergePeriodChanges(j.suggestions)); } catch {}
                 try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(j.suggestions)); } catch {}
                 loadBaseline(j.suggestions.map((r:any)=>String(r.symbol)));
                 baselineLoaded = true;
@@ -151,6 +194,7 @@ export default function RecommendPage() {
           loadBaseline([]);
           // And populate client fallback recs so the page never looks empty
           setResults(CLIENT_FALLBACK);
+          try { setResults(await computeAndMergePeriodChanges(CLIENT_FALLBACK)); } catch {}
           try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(CLIENT_FALLBACK)); } catch {}
         }
       } catch {
@@ -167,6 +211,7 @@ export default function RecommendPage() {
           { symbol: "ETH-USD", name: "Ethereum", price: 3400, change1D: "+1.2%", change1W: "+3.8%", change1M: "+12.5%", signal: "Hold", type: "crypto" },
         ];
         setResults(CLIENT_FALLBACK);
+        try { setResults(await computeAndMergePeriodChanges(CLIENT_FALLBACK)); } catch {}
         try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(CLIENT_FALLBACK)); } catch {}
       }
     };
@@ -182,6 +227,20 @@ export default function RecommendPage() {
       if (!cancelled) setResults(Array.isArray(merged) ? merged : []);
     })();
     return () => { cancelled = true; };
+  }, [results && results.map(r=>r.symbol).join(",")]);
+
+  // Recompute 1W/1M changes from history every 60 seconds
+  useEffect(() => {
+    if (!results || results.length === 0) return;
+    let cancelled = false;
+    const tick = async () => {
+      const updated = await computeAndMergePeriodChanges(results);
+      if (!cancelled) setResults(Array.isArray(updated) ? updated : results);
+    };
+    const interval = setInterval(tick, 60000);
+    // run once immediately
+    tick();
+    return () => { cancelled = true; clearInterval(interval); };
   }, [results && results.map(r=>r.symbol).join(",")]);
 
   // Refresh all recommendation data every second for real-time sync with Yahoo Finance
@@ -309,7 +368,13 @@ export default function RecommendPage() {
                     </span>
                     <span>
                       <InlineDef label="Div Yield" term="Dividend Yield" definition="Annual dividends as a percentage of the share price." href="/academy/dividend-yield" />{' '}
-                      <b>{rec.dividendYield !== undefined ? rec.dividendYield : (rec.dy !== undefined ? rec.dy : '—')}</b>
+                      <b>
+                        {typeof rec.dividendYield === 'number' && isFinite(rec.dividendYield)
+                          ? `${rec.dividendYield.toFixed(2)}%`
+                          : (typeof rec.dy === 'number' && isFinite(rec.dy)
+                              ? `${rec.dy.toFixed(2)}%`
+                              : '—')}
+                      </b>
                     </span>
                     <span>
                       <InlineDef label="Beta" term="Beta" definition="Beta measures a stock’s volatility vs. the market; 0.8 ≈ 20% less volatile than average." href="/academy/beta" />{' '}
