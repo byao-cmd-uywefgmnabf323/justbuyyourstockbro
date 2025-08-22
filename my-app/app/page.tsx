@@ -34,6 +34,19 @@ export default function ChatPage() {
   const [other, setOther] = useState<any[]>([]);
   const [showOther, setShowOther] = useState(true);
   const [showIntro, setShowIntro] = useState(false);
+
+  // Show intro notice on first load if not dismissed
+  useEffect(() => {
+    try {
+      const w = typeof window !== 'undefined' ? window : undefined;
+      const flag = w ? w.localStorage.getItem("jbysb_intro_dismissed") : "1";
+      const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+      const force = params.get("intro") === "1";
+      if (force) setShowIntro(true);
+      else setShowIntro(flag !== "1");
+    } catch {}
+  }, []);
+
   const [otherLoading, setOtherLoading] = useState(false);
   const [otherLoadedCount, setOtherLoadedCount] = useState(0);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});

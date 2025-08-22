@@ -31,7 +31,7 @@ export default function RootLayout({
             {typeof window !== 'undefined' && window.location.pathname === '/' ? (
               <span className="font-semibold text-gray-400 cursor-default">JustBuyYourStockBro</span>
             ) : (
-              <Link href="/recommend" className="font-semibold hover:underline">JustBuyYourStockBro</Link>
+              <Link href="/recommend" className="font-semibold hover:underline pointer-events-auto">JustBuyYourStockBro</Link>
             )}
             <nav className="flex items-center gap-3">
               <Link

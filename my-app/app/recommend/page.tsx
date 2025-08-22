@@ -401,11 +401,11 @@ export default function RecommendPage() {
                     </span>
                     <span>
                       <InlineDef label="52W High" term="52-Week High" definition="The highest trading price over the last 52 weeks." href="/academy/52-week-range" />{' '}
-                      <b>{rec.high52w !== undefined ? rec.high52w : '—'}</b>
+                      <b>{typeof rec.high52w === 'number' ? rec.high52w.toFixed(2) : (rec.high52w !== undefined ? rec.high52w : '—')}</b>
                     </span>
                     <span>
                       <InlineDef label="52W Low" term="52-Week Low" definition="The lowest trading price over the last 52 weeks." href="/academy/52-week-range" />{' '}
-                      <b>{rec.low52w !== undefined ? rec.low52w : '—'}</b>
+                      <b>{typeof rec.low52w === 'number' ? rec.low52w.toFixed(2) : (rec.low52w !== undefined ? rec.low52w : '—')}</b>
                     </span>
                   </div>
                   {rec.fit_reason && <div className="mb-1 text-xs text-blue-800">{rec.fit_reason}</div>}
