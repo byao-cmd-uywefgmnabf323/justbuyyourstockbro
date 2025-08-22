@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const YAHOO_QUOTE = "https://query1.finance.yahoo.com/v7/finance/quote";
-const YAHOO_QUOTE_SUMMARY = (s: string) => `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(s)}?modules=price,summaryDetail,defaultKeyStatistics`;
+const YAHOO_QUOTE = "https://query2.finance.yahoo.com/v7/finance/quote";
+const YAHOO_QUOTE_SUMMARY = (s: string) => `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(s)}?modules=price,summaryDetail,defaultKeyStatistics`;
 const STOOQ_JSON = (s: string) => `https://stooq.com/q/l/?s=${encodeURIComponent(s)}&f=sd2t2ohlcv&h&e=json`;
 const COINGECKO_SIMPLE = (ids: string[]) => `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(ids.join(","))}&vs_currencies=usd`;
 
@@ -155,6 +155,52 @@ async function fetchFromCoinGecko(symbols: string[]) {
     }
     return out;
   } catch { return [] as any[]; }
+}
+
+async function enrichWithHistory(origin: string, items: any[]) {
+  const out = [...items];
+  for (let i = 0; i < out.length; i++) {
+    const it = out[i];
+    const sym = it?.symbol;
+    if (!sym) continue;
+    // Always compute 52W range from 1y history; compute changePercent only if missing
+    const needChangePct = !(typeof it.changePercent === 'number' && isFinite(it.changePercent));
+    try {
+      // slight pacing
+      await new Promise((r) => setTimeout(r, 60));
+      const hres = await fetch(`${origin}/api/market/history?symbol=${encodeURIComponent(sym)}&range=1y&interval=1d&_=${Date.now()}`, { cache: 'no-store' });
+      if (!hres.ok) continue;
+      const hj = await hres.json();
+      const candles: any[] = Array.isArray(hj?.items) ? hj.items : (Array.isArray(hj?.candles) ? hj.candles : []);
+      if (!candles.length) continue;
+      // Compute 52W high/low from entire 1y window
+      let hi = -Infinity, lo = Infinity;
+      for (const c of candles) {
+        const v = Number(c?.c);
+        if (isFinite(v)) {
+          if (v > hi) hi = v;
+          if (v < lo) lo = v;
+        }
+      }
+      if (isFinite(hi) && isFinite(lo)) {
+        it.fiftyTwoWeekHigh = hi;
+        it.fiftyTwoWeekLow = lo;
+      }
+      if (needChangePct) {
+        const last = candles[candles.length - 1];
+        const prev = candles.length >= 2 ? candles[candles.length - 2] : null;
+        const lastC = Number(last?.c);
+        const prevC = Number(prev?.c);
+        if (isFinite(lastC) && isFinite(prevC) && prevC !== 0) {
+          const change = lastC - prevC;
+          it.change = change;
+          it.changePercent = (change / prevC) * 100;
+        }
+      }
+      out[i] = it;
+    } catch {}
+  }
+  return out;
 }
 
 export async function GET(req: Request) {
@@ -345,15 +391,19 @@ export async function GET(req: Request) {
       } catch {}
       if (out.length) {
         // Enrich fundamentals where possible
+        const origin = new URL(req.url).origin;
         const enrichedOut = await enrichWithQuoteSummary(out);
-        return NextResponse.json({ items: enrichedOut });
+        const finalOut = await enrichWithHistory(origin, enrichedOut);
+        return NextResponse.json({ items: finalOut });
       }
       // Soft-fail: return 200 with empty items and an error message for clients to handle gracefully
       return NextResponse.json({ items: [], error: errors.join("; ") || "failed" });
     }
-    // Enrich fundamentals for items missing fields
+    // Enrich fundamentals and compute 52W/changePercent from history if missing
+    const origin = new URL(req.url).origin;
     const enriched = await enrichWithQuoteSummary(allItems);
-    return NextResponse.json({ items: enriched });
+    const final = await enrichWithHistory(origin, enriched);
+    return NextResponse.json({ items: final });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "failed" }, { status: 500 });
   }
