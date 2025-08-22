@@ -93,7 +93,24 @@ async function fetchFmpProfile(symbol: string, debug?: string[]) {
     const res = await fetch(FMP_PROFILE(symbol, key), { cache: 'no-store' });
     if (!res.ok) {
       if (debug) debug.push(`fmp ${symbol} profile status ${res.status}`);
-      if (res.status === 429) return null; // rate limited; bail quickly
+      if (res.status === 429) {
+        // try quote endpoint as a lighter fallback; may still be rate-limited
+        try {
+          const r2 = await fetch(FMP_QUOTE(symbol, key), { cache: 'no-store' });
+          if (r2.ok) {
+            const jq = await r2.json();
+            const q = Array.isArray(jq) ? jq[0] : null;
+            if (q) {
+              const trailingPE = typeof q?.pe === 'number' ? q.pe : undefined;
+              const epsTTM = typeof q?.eps === 'number' ? q.eps : undefined;
+              const outAny: any = { symbol, trailingPE, epsTTM };
+              if (debug) debug.push(`fmp ${symbol} quote-lite ok under 429: pe=${trailingPE}, eps=${epsTTM}`);
+              return outAny;
+            }
+          } else if (debug) debug.push(`fmp ${symbol} quote-lite status ${r2.status}`);
+        } catch (e:any) { if (debug) debug.push(`fmp ${symbol} quote-lite failed: ${e?.message || 'error'}`); }
+        return null;
+      }
       return null;
     }
     const j = await res.json();
@@ -282,8 +299,12 @@ async function enrichWithQuoteSummary(items: any[], debug?: string[]) {
     let s = getFundFromCache(sym);
     if (!s) {
       if (isProd) {
-        // In production, skip Yahoo enrichment to reduce wasted calls and rate limits
+        // In production, prefer FMP first; but if that fails (e.g., 429), try Yahoo as last resort
         s = await fetchFmpProfile(sym, debug);
+        if (!s) {
+          s = await fetchYahooQuoteSummary(sym, debug);
+          if (!s) s = await fetchYahooFinancePageSummary(sym, debug);
+        }
       } else {
         s = await fetchYahooQuoteSummary(sym, debug);
         if (!s) s = await fetchYahooFinancePageSummary(sym, debug);
