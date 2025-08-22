@@ -275,33 +275,6 @@ export default function RecommendPage() {
 
   return (
     <main className="min-h-screen py-10 px-4 bg-background">
-      {/* Mission Notice Box */}
-      {showMission && (
-        <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/40">
-          <div className="mt-20 w-full max-w-2xl bg-white border border-gray-300 shadow-2xl p-5">
-            <div className="flex items-start justify-between">
-              <h2 className="text-xl font-bold text-black">Welcome to JustBuyYourStockBro</h2>
-              <button onClick={() => setShowMission(false)} className="ml-4 px-3 py-1 border border-gray-900 bg-black text-white rounded-none">Close</button>
-            </div>
-            <div className="mt-3 text-sm text-black space-y-2">
-              <p><span className="font-semibold">Mission:</span> help retail investors cut noise with personalized, explainable stock ideas and quick AI validation.</p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li><span className="font-semibold">Personalized Picks:</span> survey your style, risk, horizon, sectors + context to tailor recommendations.</li>
-                <li><span className="font-semibold">Explainable Reasons:</span> symbol pages include concise AI bullets under Key Stats.</li>
-                <li><span className="font-semibold">Other Stocks:</span> keep a broad universe visible for discovery, not just AI’s top picks.</li>
-                <li><span className="font-semibold">AI Backtesting:</span> try strategies on <a className="underline" href="/backtest">/backtest</a> for quick metrics (CAGR, Sharpe, drawdown).</li>
-              </ul>
-            </div>
-            <div className="mt-4 flex justify-end">
-              <button onClick={() => setShowMission(false)} className="px-4 py-2 border border-gray-900 bg-black text-white rounded-none">Got it</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Mission Button */}
-      <div className="w-full flex justify-end mb-4">
-        <button onClick={() => setShowMission(true)} className="px-3 py-2 border border-gray-900 bg-white text-black text-sm rounded-none">Mission</button>
-      </div>
       <h1 className="text-2xl font-bold text-center mb-6 text-charcoal">Your AI-Tailored Stock Ideas</h1>
 
       {results.length>0 ? (

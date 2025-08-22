@@ -28,14 +28,12 @@ export default function RootLayout({
         {/* Global top header with explicit Dashboard button */}
         <header className="w-full border-b border-border bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60">
           <div className="w-full max-w-laptop mx-auto px-4 h-12 flex items-center justify-between">
-            <Link href="/recommend" className="font-semibold hover:underline">JustBuyYourStockBro</Link>
+            {typeof window !== 'undefined' && window.location.pathname === '/' ? (
+              <span className="font-semibold text-gray-400 cursor-default">JustBuyYourStockBro</span>
+            ) : (
+              <Link href="/recommend" className="font-semibold hover:underline">JustBuyYourStockBro</Link>
+            )}
             <nav className="flex items-center gap-3">
-              <Link
-                href="/?intro=1"
-                className="inline-flex items-center rounded-md border border-black px-3 py-1.5 text-sm font-medium text-black hover:bg-black/5"
-              >
-                Mission
-              </Link>
               <Link
                 href="/academy"
                 className="inline-flex items-center rounded-md border border-black px-3 py-1.5 text-sm font-medium text-black hover:bg-black/5"
