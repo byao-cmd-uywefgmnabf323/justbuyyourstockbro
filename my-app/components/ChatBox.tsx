@@ -82,6 +82,12 @@ export default function ChatBox() {
   return (
     <div className="w-full max-w-xl flex flex-col border border-gray-300 bg-white h-[300px]">
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        {/* Permanent AI intro message */}
+        <div className="text-left">
+          <div className="inline-block px-3 py-2 rounded bg-gray-100 text-black">
+            Welcome to justbuyyourstockbro, tell me about any necessary experience or information to help provide the most accurate recommendations.
+          </div>
+        </div>
         {messages.map((m, i) => {
           const display = m.role === "assistant" ? m.content.replace(/<\s*recommend\s*\/?>/ig, "").trim() : m.content;
           return (
