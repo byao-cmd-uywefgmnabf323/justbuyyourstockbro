@@ -140,22 +140,22 @@ export default function ChatPage() {
     <main className="min-h-screen flex flex-col items-center justify-center min-h-screen bg-background px-4">
       {/* Mission Notice Box */}
       {showIntro && (
-        <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/40">
-          <div className="mt-20 w-full max-w-2xl bg-white border border-gray-300 shadow-2xl p-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-2xl bg-white border border-gray-300 shadow-2xl p-6 rounded-lg">
             <div className="flex items-start justify-between">
-              <h2 className="text-xl font-bold text-black">Welcome to JustBuyYourStockBro</h2>
+              <h2 className="text-2xl font-bold text-black">Welcome to JustBuyYourStockBro</h2>
             </div>
-            <div className="mt-3 text-sm text-black space-y-2">
-              <p><span className="font-semibold">Mission:</span> help retail investors cut noise with personalized, explainable stock ideas and quick AI validation.</p>
+            <div className="mt-3 text-base text-black space-y-3">
+              <p><span className="font-semibold">Mission:</span> Help retail investors cut noise with personalized, explainable stock ideas and quick AI validation.</p>
               <ul className="list-disc pl-5 space-y-1">
-                <li><span className="font-semibold">Personalized Picks:</span> survey your style, risk, horizon, sectors + context to tailor recommendations.</li>
-                <li><span className="font-semibold">Explainable Reasons:</span> symbol pages include concise AI bullets under Key Stats.</li>
-                <li><span className="font-semibold">Other Stocks:</span> keep a broad universe visible for discovery, not just AI’s top picks.</li>
-                <li><span className="font-semibold">AI Backtesting:</span> try strategies on <a className="underline" href="/backtest">/backtest</a> for quick metrics (CAGR, Sharpe, drawdown).</li>
+                <li><span className="font-semibold">Personalized Picks:</span> Survey your style, risk, horizon, sectors, and context to tailor recommendations.</li>
+                <li><span className="font-semibold">Explainable Reasons:</span> Symbol pages include concise AI bullets under Key Stats.</li>
+                <li><span className="font-semibold">Other Stocks:</span> Keep a broad universe visible for discovery, not just AI’s top picks.</li>
+                <li><span className="font-semibold">AI Backtesting:</span> Try strategies on <a className="underline" href="/backtest">/backtest</a> for quick metrics (CAGR, Sharpe, drawdown).</li>
               </ul>
             </div>
-            <div className="mt-4 flex justify-end">
-              <button onClick={dismissIntro} className="px-4 py-2 border border-gray-900 bg-black text-white rounded-none">Got it</button>
+            <div className="mt-6 flex justify-end">
+              <button onClick={dismissIntro} className="px-5 py-2 border border-gray-900 bg-black text-white rounded">Got it</button>
             </div>
           </div>
         </div>
