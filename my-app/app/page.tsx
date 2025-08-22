@@ -39,6 +39,75 @@ export default function ChatPage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [filter, setFilter] = useState<"all" | "equity" | "crypto" | "forex">("all");
 
+  // Merge live quotes into recommendation results (price, change1D, P/E, EPS, DY, Beta, 52W High/Low, name)
+  const mergeLiveForResults = async (baseResults: any[]) => {
+    if (!Array.isArray(baseResults) || baseResults.length === 0) return baseResults;
+    const symbols = baseResults.map((r:any)=> String((r as any).symbol)).filter(Boolean);
+    if (!symbols.length) return baseResults;
+    try {
+      const res = await fetch(`/api/market/quote?symbols=${encodeURIComponent(symbols.join(","))}&_=${Date.now()}`, { cache: "no-store" });
+      const j = await res.json();
+      if (!Array.isArray(j.items)) return baseResults;
+      const liveMap = new Map(j.items.map((q:any)=>[(q as any).symbol, q]));
+      return baseResults.map((r:any)=>{
+        const live = liveMap.get(String((r as any).symbol));
+        if (!live) return r;
+        const name = (r as any).name ?? (live as any).longName ?? (live as any).shortName ?? (r as any).symbol;
+        const dyLive = typeof (live as any).dividendYield === 'number' && isFinite((live as any).dividendYield) ? (live as any).dividendYield : undefined;
+        return {
+          ...(r as any),
+          name,
+          price: Number.isFinite((live as any).price) ? (live as any).price : (r as any).price,
+          change1D: typeof (live as any).changePercent==='number'? `${(live as any).changePercent.toFixed(2)}%` : (r as any).change1D,
+          pe: typeof (live as any).trailingPE==='number' && isFinite((live as any).trailingPE) ? (live as any).trailingPE : (r as any).pe,
+          eps: typeof (live as any).epsTTM==='number' && isFinite((live as any).epsTTM) ? (live as any).epsTTM : (r as any).eps,
+          dy: dyLive ?? (r as any).dy,
+          beta: typeof (live as any).beta==='number' && isFinite((live as any).beta) ? (live as any).beta : (r as any).beta,
+          high52w: typeof (live as any).fiftyTwoWeekHigh==='number' ? (live as any).fiftyTwoWeekHigh : (r as any).high52w,
+          low52w: typeof (live as any).fiftyTwoWeekLow==='number' ? (live as any).fiftyTwoWeekLow : (r as any).low52w,
+        };
+      });
+    } catch { return baseResults; }
+  };
+
+  // Compute 1D/1W/1M from history once per recommendation set (not every second)
+  const computeHistoryChangesForResults = async (baseResults: any[]) => {
+    if (!Array.isArray(baseResults) || baseResults.length === 0) return baseResults;
+    const out = [...baseResults];
+    const syms = out.map((r:any)=>String(r.symbol)).filter(Boolean);
+    const concurrency = 4;
+    let idx = 0;
+    const worker = async () => {
+      while (idx < syms.length) {
+        const i = idx++;
+        const sym = syms[i];
+        try {
+          const hres = await fetch(`/api/market/history?symbol=${encodeURIComponent(sym)}&range=6mo&interval=1d&_=${Date.now()}`, { cache: "no-store" });
+          const hjson = await hres.json();
+          const cs = Array.isArray(hjson.items) ? hjson.items : (Array.isArray(hjson.candles) ? hjson.candles : []);
+          if (cs.length >= 2) {
+            const last = Number(cs[cs.length - 1]?.c);
+            const d1 = Number(cs[cs.length - 2]?.c);
+            const w1 = Number(cs[cs.length - 6]?.c);
+            const m1 = Number(cs[cs.length - 22]?.c);
+            const pct = (a:number,b:number)=> (isFinite(a) && isFinite(b) && b!==0 ? ((a-b)/b)*100 : NaN);
+            const p1 = pct(last, d1);
+            const p7 = pct(last, w1);
+            const p21 = pct(last, m1);
+            const j = out.find((r:any)=>String(r.symbol)===sym);
+            if (j) {
+              if (!j.change1D || j.change1D === '—') { if (isFinite(p1)) j.change1D = `${p1.toFixed(2)}%`; }
+              if (!j.change1W || j.change1W === '—') { if (isFinite(p7)) j.change1W = `${p7.toFixed(2)}%`; }
+              if (!j.change1M || j.change1M === '—') { if (isFinite(p21)) j.change1M = `${p21.toFixed(2)}%`; }
+            }
+          }
+        } catch {}
+      }
+    };
+    await Promise.all(Array.from({length: Math.min(concurrency, syms.length)}, ()=>worker()));
+    return out;
+  };
+
   const riskLevels = ["Low", "Medium", "High"];
 
   // --- Chat-first UI ---
@@ -243,7 +312,11 @@ export default function ChatPage() {
       if (!res.ok) throw new Error("Request failed");
       const data = await res.json();
       const recs = Array.isArray(data.suggestions) ? data.suggestions : [];
-      setResults(recs);
+      // initial merge with live quotes
+      const merged = await mergeLiveForResults(recs);
+      // compute history-based percent changes once
+      const withPct = await computeHistoryChangesForResults(merged);
+      setResults(withPct);
       // refresh baseline excluding recommended symbols (non-blocking)
       loadBaseline(recs.map((r: any) => String(r.symbol)));
     } catch (e: any) {
@@ -255,6 +328,23 @@ export default function ChatPage() {
 
   const toggleExpand = (sym: string) =>
     setExpanded((s) => ({ ...s, [sym]: !s[sym] }));
+
+  // Live polling to keep recommendation price/change in sync (1s)
+  const recSymbolsKey = results.map(r=>String(r.symbol)).sort().join(',');
+  useEffect(() => {
+    let active = true;
+    if (!recSymbolsKey) return;
+    const tick = async () => {
+      try {
+        const updated = await mergeLiveForResults(results);
+        if (active) setResults(updated);
+      } catch {}
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => { active = false; window.clearInterval(id); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recSymbolsKey]);
 
   const filtered = results.filter((r) => (filter === "all" ? true : r.type === filter));
 

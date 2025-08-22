@@ -53,6 +53,7 @@ async function fetchFromStooq(symbol: string) {
       currency: "USD",
     };
   } catch { return null; }
+}
 
 async function fetchYahooQuoteSummary(symbol: string) {
   try {
