@@ -6,52 +6,11 @@ import InlineDef from "@/components/InlineDef";
 import ProjectionTool from "@/components/ProjectionTool";
 
 export default function RecommendPage() {
-  const [showMission, setShowMission] = useState(false);
-  useEffect(() => { setShowMission(true); }, []);
-  const [showOther, setShowOther] = useState(false);
   const [results, setResults] = useState<any[]>([]);
-  const [other, setOther] = useState<any[]>([]);
-  const [otherLoading, setOtherLoading] = useState(false);
-  const [otherLoadedCount, setOtherLoadedCount] = useState(0);
   const [recLoading, setRecLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
-
-  // baseline universe copied from old page
-  const BASE_UNIVERSE: string[] = [
-    "AAPL","MSFT","NVDA","TSLA","AMZN","GOOGL","META","AMD","NFLX","JPM",
-    "V","MA","BAC","XOM","CVX","JNJ","PEP","KO","DIS","NKE",
-    "HD","PG","UNH","LLY","ABBV","AVGO","COST","WMT","ORCL","CRM",
-    "INTC","CSCO","ADBE","TXN","QCOM","SHOP","PYPL","SQ","UBER","ABNB",
-    "BTC-USD","ETH-USD","SOL-USD","DOGE-USD","ADA-USD","BNB-USD",
-    "EURUSD=X","USDJPY=X","GBPUSD=X","USDCHF=X",
-  ];
-
-  // simplified baseline loader (price only)
-  const loadBaseline = async (excludeSyms: string[]) => {
-    try {
-      const exclude = new Set(excludeSyms.map((s) => s.toUpperCase()));
-      const universe = BASE_UNIVERSE.filter((s) => !exclude.has(s));
-      if (!universe.length) { setOther([]); return; }
-      const placeholders = universe.map((s) => ({ symbol: s, price: null, change1D: "—" }));
-      setOther(Array.isArray(placeholders) ? placeholders : []);
-      setOtherLoading(true);
-      const loaded: any[] = [];
-      await Promise.all(universe.map(async (sym) => {
-        try {
-          const res = await fetch(`/api/market/quote?symbols=${encodeURIComponent(sym)}&_=${Date.now()}`);
-          const j = await res.json();
-          if (Array.isArray(j.items) && j.items[0]) {
-            const q = j.items[0];
-            loaded.push({ symbol: q.symbol, name: q.longName || q.shortName || q.symbol, price: q.price, change1D: typeof q.changePercent==='number'? `${q.changePercent.toFixed(2)}%`:'—' });
-          }
-        } catch {}
-      }));
-      const merged = universe.map((s) => loaded.find(l=>l.symbol===s) || placeholders.find(p=>p.symbol===s));
-      setOther(Array.isArray(merged) ? merged : []);
-    } finally { setOtherLoading(false); }
-  };
 
   // Compute 1W and 1M percent changes from daily history (approx 5 and 21 trading days)
   const computeAndMergePeriodChanges = async (baseResults: any[]) => {
@@ -156,7 +115,6 @@ export default function RecommendPage() {
         const merged = await refreshQuotesForResults(j.suggestions);
         setResults(Array.isArray(merged) ? merged : []);
         try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(merged)); } catch {}
-        loadBaseline(j.suggestions.map((r:any)=>String(r.symbol)));
       }
     } finally {
       setRecLoading(false);
@@ -183,7 +141,6 @@ export default function RecommendPage() {
           if (Array.isArray(arr) && arr.length > 0) {
             setResults(arr);
             try { setResults(await computeAndMergePeriodChanges(arr)); } catch {}
-            loadBaseline(arr.map((r:any)=>String(r.symbol)));
             baselineLoaded = true;
           }
         }
@@ -200,7 +157,6 @@ export default function RecommendPage() {
                 setResults(j.suggestions);
                 try { setResults(await computeAndMergePeriodChanges(j.suggestions)); } catch {}
                 try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(j.suggestions)); } catch {}
-                loadBaseline(j.suggestions.map((r:any)=>String(r.symbol)));
                 baselineLoaded = true;
               }
             } finally {
@@ -209,17 +165,13 @@ export default function RecommendPage() {
           }
         }
         if (!baselineLoaded) {
-          // Load baseline universe so View More is immediately useful
-          loadBaseline([]);
           // And populate client fallback recs so the page never looks empty
           setResults(CLIENT_FALLBACK);
           try { setResults(await computeAndMergePeriodChanges(CLIENT_FALLBACK)); } catch {}
           try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(CLIENT_FALLBACK)); } catch {}
         }
       } catch {
-        // As a last resort, load baseline
-        loadBaseline([]);
-        // Also set client fallback recs
+        // As a last resort, also set client fallback recs
         const CLIENT_FALLBACK = [
           { symbol: "AAPL", name: "Apple", price: 185, change1D: "+0.5%", change1W: "+1.3%", change1M: "+4.2%", pe: 29, eps: 6.2, dy: 0.6, signal: "Buy", type: "equity" },
           { symbol: "MSFT", name: "Microsoft", price: 410, change1D: "+0.3%", change1W: "+2.1%", change1M: "+6.0%", pe: 32, eps: 9.8, dy: 0.8, signal: "Buy", type: "equity" },
@@ -238,6 +190,7 @@ export default function RecommendPage() {
   },[]);
 
   // Always update results with live quote data for accurate price/quantitative info
+  const resultsKey = results.map((r: any) => r.symbol).join(',');
   useEffect(() => {
     if (!results || results.length === 0) return;
     let cancelled = false;
@@ -246,7 +199,8 @@ export default function RecommendPage() {
       if (!cancelled) setResults(Array.isArray(merged) ? merged : []);
     })();
     return () => { cancelled = true; };
-  }, [results && results.map(r=>r.symbol).join(",")]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultsKey]);
 
   // Recompute 1W/1M changes from history every 60 seconds
   useEffect(() => {
@@ -260,18 +214,20 @@ export default function RecommendPage() {
     // run once immediately
     tick();
     return () => { cancelled = true; clearInterval(interval); };
-  }, [results && results.map(r=>r.symbol).join(",")]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultsKey]);
 
   // Refresh all recommendation data every second for real-time sync with Yahoo Finance
   useEffect(() => {
-    if (!results || results.length === 0) return;
+    if (recLoading || !results || results.length === 0) return;
     let cancelled = false;
     const interval = setInterval(async () => {
       const merged = await refreshQuotesForResults(results);
       if (!cancelled) setResults(Array.isArray(merged) ? merged : []);
     }, 1000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [results && results.map(r=>r.symbol).join(",")]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultsKey, recLoading]);
 
   return (
     <main className="min-h-screen py-10 px-4 bg-background">
@@ -401,11 +357,11 @@ export default function RecommendPage() {
                     </span>
                     <span>
                       <InlineDef label="52W High" term="52-Week High" definition="The highest trading price over the last 52 weeks." href="/academy/52-week-range" />{' '}
-                      <b>{typeof rec.high52w === 'number' ? rec.high52w.toFixed(2) : (rec.high52w !== undefined ? rec.high52w : '—')}</b>
+                      <b>{recLoading ? 'loading...' : (typeof rec.high52w === 'number' ? rec.high52w.toFixed(2) : (rec.high52w !== undefined ? rec.high52w : '—'))}</b>
                     </span>
                     <span>
                       <InlineDef label="52W Low" term="52-Week Low" definition="The lowest trading price over the last 52 weeks." href="/academy/52-week-range" />{' '}
-                      <b>{typeof rec.low52w === 'number' ? rec.low52w.toFixed(2) : (rec.low52w !== undefined ? rec.low52w : '—')}</b>
+                      <b>{recLoading ? 'loading...' : (typeof rec.low52w === 'number' ? rec.low52w.toFixed(2) : (rec.low52w !== undefined ? rec.low52w : '—'))}</b>
                     </span>
                   </div>
                   {rec.fit_reason && <div className="mb-1 text-xs text-blue-800">{rec.fit_reason}</div>}
