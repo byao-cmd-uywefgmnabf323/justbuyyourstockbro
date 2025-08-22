@@ -154,7 +154,7 @@ export default function ChatPage() {
             try {
               const hres = await fetch(`/api/market/history?symbol=${encodeURIComponent(sym)}&range=5d&interval=1d&_=${Date.now()}`, { cache: "no-store" });
               const hjson = await hres.json();
-              const candles = Array.isArray(hjson.candles) ? hjson.candles : [];
+              const candles = Array.isArray(hjson.items) ? hjson.items : (Array.isArray(hjson.candles) ? hjson.candles : []);
               if (candles.length) {
                 const last = candles[candles.length - 1];
                 if (last && typeof last.c === "number" && isFinite(last.c)) {
@@ -168,7 +168,7 @@ export default function ChatPage() {
             try {
               const hres2 = await fetch(`/api/market/history?symbol=${encodeURIComponent(sym)}&range=6mo&interval=1d&_=${Date.now()}`, { cache: "no-store" });
               const hjson2 = await hres2.json();
-              const cs = Array.isArray(hjson2.candles) ? hjson2.candles : [];
+              const cs = Array.isArray(hjson2.items) ? hjson2.items : (Array.isArray(hjson2.candles) ? hjson2.candles : []);
               if (cs.length >= 2) {
                 const last = Number(cs[cs.length - 1]?.c);
                 const d1 = Number(cs[cs.length - 2]?.c);

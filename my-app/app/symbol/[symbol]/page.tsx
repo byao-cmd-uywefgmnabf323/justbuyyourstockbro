@@ -25,6 +25,7 @@ export default function SymbolDetailPage() {
   const [range, setRange] = useState<"1mo" | "3mo" | "6mo" | "1y" | "ytd" | "max">("6mo");
   const [interval, setInterval] = useState<"1d" | "1h" | "1wk">("1d");
   const [candles, setCandles] = useState<Array<{ t: number; c: number }>>([]);
+  const [indCandles, setIndCandles] = useState<Array<{ t: number; c: number }>>([]);
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiBullets, setAiBullets] = useState<string[]>([]);
@@ -36,14 +37,17 @@ export default function SymbolDetailPage() {
   const printRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    let active = true;
     const loadQuote = async () => {
       try {
-        const res = await fetch(`/api/market/quote?symbols=${encodeURIComponent(symbol)}`, { cache: "no-store" });
+        const res = await fetch(`/api/market/quote?symbols=${encodeURIComponent(symbol)}&_=${Date.now()}`, { cache: "no-store" });
         const j = await res.json();
-        if (Array.isArray(j.items) && j.items.length > 0) setQuote(j.items[0]);
+        if (active && Array.isArray(j.items) && j.items.length > 0) setQuote(j.items[0]);
       } catch {}
     };
     loadQuote();
+    const id = window.setInterval(loadQuote, 1000);
+    return () => { active = false; window.clearInterval(id); };
   }, [symbol]);
 
   useEffect(() => {
@@ -53,7 +57,7 @@ export default function SymbolDetailPage() {
         setLoading(true);
         const res = await fetch(`/api/market/history?symbol=${encodeURIComponent(symbol)}&range=${range}&interval=${interval}`, { cache: "no-store" });
         const j = await res.json();
-        if (mounted) setCandles(j.candles || []);
+        if (mounted) setCandles(Array.isArray(j.items) ? j.items : (j.candles || []));
       } catch {
       } finally {
         if (mounted) setLoading(false);
@@ -62,6 +66,20 @@ export default function SymbolDetailPage() {
     loadHistory();
     return () => { mounted = false; };
   }, [symbol, range, interval]);
+
+  // Load long history for indicators (SMA200, 52W range, RSI, MACD)
+  useEffect(() => {
+    let active = true;
+    const loadLong = async () => {
+      try {
+        const res = await fetch(`/api/market/history?symbol=${encodeURIComponent(symbol)}&range=2y&interval=1d`, { cache: "no-store" });
+        const j = await res.json();
+        if (active) setIndCandles(Array.isArray(j.items) ? j.items : (j.candles || []));
+      } catch {}
+    };
+    loadLong();
+    return () => { active = false; };
+  }, [symbol]);
 
   // Load AI reasons for symbol
   useEffect(() => {
@@ -93,6 +111,7 @@ export default function SymbolDetailPage() {
 
   // Indicator helpers
   const closes = useMemo(() => candles.map(c => c.c), [candles]);
+  const indCloses = useMemo(() => indCandles.map(c => c.c), [indCandles]);
   const sma = (vals: number[], period: number) => {
     const out: (number | null)[] = [];
     let sum = 0;
@@ -148,24 +167,55 @@ export default function SymbolDetailPage() {
 
   const latestIdx = closes.length - 1;
   const stats = useMemo(() => {
-    if (closes.length === 0) {
+    const base = indCloses.length ? indCloses : closes;
+    const li = base.length - 1;
+    if (base.length === 0) {
       return { price: undefined, min52w: undefined, max52w: undefined, s20: undefined, s50: undefined, s200: undefined, e12: undefined, e26: undefined, rsi: undefined, macd: undefined, macdSignal: undefined, macdHist: undefined } as Record<string, number | undefined> as any;
     }
-    const price = closes[latestIdx];
-    const last252 = closes.slice(-252);
+    const price = typeof quote?.price === 'number' && isFinite(quote.price) ? quote.price : (closes.length ? closes[latestIdx] : base[li]);
+    const last252 = base.slice(-252);
     const min = last252.length ? Math.min(...last252) : undefined;
     const max = last252.length ? Math.max(...last252) : undefined;
-    const s20 = sma(closes, 20)[latestIdx] ?? undefined;
-    const s50 = sma(closes, 50)[latestIdx] ?? undefined;
-    const s200 = sma(closes, 200)[latestIdx] ?? undefined;
-    const e12 = ema(closes, 12)[latestIdx] ?? undefined;
-    const e26 = ema(closes, 26)[latestIdx] ?? undefined;
-    const rsi = rsiArr[latestIdx] ?? undefined;
-    const m = macd.macdLine[latestIdx] ?? undefined;
-    const sig = macd.signal[latestIdx] ?? undefined;
-    const hist = macd.hist[latestIdx] ?? undefined;
-    return { price, min52w: min, max52w: max, s20, s50, s200, e12, e26, rsi, macd: m, macdSignal: sig, macdHist: hist };
-  }, [closes, latestIdx, macd, rsiArr]);
+    const s20 = sma(base, 20)[li] ?? undefined;
+    const s50 = sma(base, 50)[li] ?? undefined;
+    const s200 = sma(base, 200)[li] ?? undefined;
+    const e12 = ema(base, 12)[li] ?? undefined;
+    const e26 = ema(base, 26)[li] ?? undefined;
+    // Recompute RSI/MACD on base for consistency
+    const ema12 = ema(base, 12);
+    const ema26 = ema(base, 26);
+    const macdLine = base.map((_, i) => (ema12[i] != null && ema26[i] != null ? (ema12[i]! - ema26[i]!) : null));
+    const signal = ema(macdLine.map(v => v ?? 0), 9);
+    const histArr = macdLine.map((v, i) => (v != null && signal[i] != null ? v - signal[i]! : null));
+    const rsi = (() => {
+      const period = 14;
+      const out: (number | null)[] = [];
+      let gains = 0, losses = 0;
+      for (let i = 1; i < base.length; i++) {
+        const ch = base[i] - base[i - 1];
+        gains += Math.max(0, ch);
+        losses += Math.max(0, -ch);
+        if (i >= period) {
+          const chOld = base[i - period + 1] - base[i - period];
+          gains -= Math.max(0, chOld);
+          losses -= Math.max(0, -chOld);
+        }
+        if (i >= period) {
+          const avgGain = gains / period;
+          const avgLoss = losses / period;
+          const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+          const rsiVal = 100 - 100 / (1 + rs);
+          out.push(rsiVal);
+        } else out.push(null);
+      }
+      return [null, ...out];
+    })();
+    const rsiVal = rsi[li] ?? undefined;
+    const m = macdLine[li] ?? undefined;
+    const sig = signal[li] ?? undefined;
+    const hist = histArr[li] ?? undefined;
+    return { price, min52w: min, max52w: max, s20, s50, s200, e12, e26, rsi: rsiVal, macd: m, macdSignal: sig, macdHist: hist };
+  }, [closes, indCloses, latestIdx, quote?.price]);
 
   // Build a default local report in case AI endpoint is unavailable
   const buildLocalReport = (): string => {
