@@ -9,9 +9,9 @@ function IntroController({ setShow }: { setShow: (v: boolean) => void }) {
   useEffect(() => {
     try {
       const w = typeof window !== 'undefined' ? window : undefined;
-      const flag = w ? w.localStorage.getItem("jbysb_intro_dismissed") : "1";
+      const introDismissed = w ? w.sessionStorage.getItem("jbysb_intro_dismissed") : "1";
       const force = params?.get("intro") === "1";
-      if (force) setShow(true); else setShow(flag !== "1");
+      if (force) setShow(true); else setShow(introDismissed !== "1");
     } catch { }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
@@ -23,7 +23,7 @@ function ChatPageInternal() {
 
   const dismissIntro = () => {
     try {
-      window.localStorage.setItem("jbysb_intro_dismissed", "1");
+      window.sessionStorage.setItem("jbysb_intro_dismissed", "1");
       if (typeof window !== 'undefined') {
         const url = new URL(window.location.href);
         url.searchParams.delete('intro');
