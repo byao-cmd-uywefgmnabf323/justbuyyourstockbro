@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 const YAHOO_QUOTE = "https://query2.finance.yahoo.com/v7/finance/quote";
-const YAHOO_QUOTE_SUMMARY = (s: string) => `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(s)}?modules=price,summaryDetail,defaultKeyStatistics`;
+const YAHOO_QUOTE_SUMMARY = (s: string) => `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(s)}?modules=price,summaryDetail,defaultKeyStatistics,financialData`;
 const STOOQ_JSON = (s: string) => `https://stooq.com/q/l/?s=${encodeURIComponent(s)}&f=sd2t2ohlcv&h&e=json`;
 const COINGECKO_SIMPLE = (ids: string[]) => `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(ids.join(","))}&vs_currencies=usd`;
+const FMP_PROFILE = (s: string, k: string) => `https://financialmodelingprep.com/api/v3/profile/${encodeURIComponent(s)}?apikey=${encodeURIComponent(k)}`;
+const FMP_QUOTE = (s: string, k: string) => `https://financialmodelingprep.com/api/v3/quote/${encodeURIComponent(s)}?apikey=${encodeURIComponent(k)}`;
+const FMP_RATIOS_TTM = (s: string, k: string) => `https://financialmodelingprep.com/api/v3/ratios-ttm/${encodeURIComponent(s)}?apikey=${encodeURIComponent(k)}`;
 
 const mapCryptoId = (sym: string): string | null => {
   const m: Record<string, string> = {
@@ -64,34 +70,96 @@ async function fetchFromStooq(symbol: string) {
   } catch { return null; }
 }
 
-async function fetchYahooQuoteSummary(symbol: string) {
+// Optional fallback: Financial Modeling Prep profile
+async function fetchFmpProfile(symbol: string, debug?: string[]) {
   try {
-    let res: Response | null = null;
-    let lastErr: any = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        res = await fetch(YAHOO_QUOTE_SUMMARY(symbol), {
-          headers: { "User-Agent": "justbuyyourstockbro", "Accept": "application/json" },
-          cache: "no-store",
-        });
-        if (res.ok) break;
-        lastErr = new Error(`Yahoo quoteSummary failed: ${res.status}`);
-      } catch (e) { lastErr = e; }
-      await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
-    }
-    if (!res || !res.ok) throw lastErr || new Error("quoteSummary failed");
+    const key = process.env.FMP_API_KEY;
+    if (!key) { if (debug) debug.push(`fmp ${symbol} skipped: no FMP_API_KEY`); return null; }
+    const res = await fetch(FMP_PROFILE(symbol, key), { cache: 'no-store' });
+    if (!res.ok) { if (debug) debug.push(`fmp ${symbol} profile status ${res.status}`); return null; }
     const j = await res.json();
-    const r = j?.quoteSummary?.result?.[0];
-    if (!r) return null;
-    const price = r.price || {};
-    const sd = r.summaryDetail || {};
-    const ks = r.defaultKeyStatistics || {};
+    const row = Array.isArray(j) ? j[0] : null;
+    if (!row) { if (debug) debug.push(`fmp ${symbol} profile empty`); return null; }
+    let trailingPE = typeof row?.pe === 'number' ? row.pe : undefined;
+    let epsTTM = typeof row?.eps === 'number' ? row.eps : undefined;
+    // Prefer explicit dividendYield if present; otherwise try ratios-ttm later
+    let dividendYield = typeof row?.dividendYield === 'number' ? (row.dividendYield * 100) : undefined;
+    const beta = typeof row?.beta === 'number' ? row.beta : undefined;
+
+    // If pe/eps missing, try FMP quote endpoint
+    if ((typeof trailingPE !== 'number') || (typeof epsTTM !== 'number')) {
+      try {
+        const r2 = await fetch(FMP_QUOTE(symbol, key), { cache: 'no-store' });
+        if (r2.ok) {
+          const jq = await r2.json();
+          const q = Array.isArray(jq) ? jq[0] : null;
+          if (q) {
+            if (typeof q?.pe === 'number' && !isFinite(trailingPE as number)) trailingPE = q.pe;
+            if (typeof q?.eps === 'number' && !isFinite(epsTTM as number)) epsTTM = q.eps;
+          } else if (debug) debug.push(`fmp ${symbol} quote empty`);
+        } else if (debug) debug.push(`fmp ${symbol} quote status ${r2.status}`);
+      } catch (e:any) { if (debug) debug.push(`fmp ${symbol} quote failed: ${e?.message || 'error'}`); }
+    }
+
+    // If dividendYield still missing, try ratios-ttm (dividendYieldTTM as decimal)
+    if (typeof dividendYield !== 'number') {
+      try {
+        const r3 = await fetch(FMP_RATIOS_TTM(symbol, key), { cache: 'no-store' });
+        if (r3.ok) {
+          const jr = await r3.json();
+          const rrow = Array.isArray(jr) ? jr[0] : null;
+          const dy = rrow?.dividendYieldTTM;
+          if (typeof dy === 'number' && isFinite(dy)) dividendYield = dy * 100;
+          else if (debug) debug.push(`fmp ${symbol} ratios missing dividendYieldTTM`);
+        } else if (debug) debug.push(`fmp ${symbol} ratios status ${r3.status}`);
+      } catch (e:any) { if (debug) debug.push(`fmp ${symbol} ratios failed: ${e?.message || 'error'}`); }
+    }
+
+    const out: any = { symbol, trailingPE, epsTTM, dividendYield, beta };
+    if (debug) debug.push(`fmp ${symbol} ok: pe=${trailingPE}, eps=${epsTTM}, yld=${dividendYield}, beta=${beta}`);
+    return out;
+  } catch (e: any) {
+    if (debug) debug.push(`fmp ${symbol} failed: ${e?.message || 'error'}`);
+    return null;
+  }
+}
+
+// Fallback: scrape Yahoo Finance HTML and parse embedded JSON (root.App.main)
+async function fetchYahooFinancePageSummary(symbol: string, debug?: string[]) {
+  try {
+    const urls = [
+      `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}?p=${encodeURIComponent(symbol)}`,
+      `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}/key-statistics?p=${encodeURIComponent(symbol)}`,
+    ];
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Referer": "https://finance.yahoo.com/",
+      "Cache-Control": "no-cache",
+      "Pragma": "no-cache",
+    } as any;
+    let page: any = null;
+    for (let i = 0; i < urls.length; i++) {
+      const res = await fetch(urls[i], { headers, cache: 'no-store' });
+      if (!res.ok) { if (debug) debug.push(`html ${symbol} status ${res.status} for u${i}`); continue; }
+      const html = await res.text();
+      const m = html.match(/root\.App\.main\s*=\s*(\{[\s\S]*?\});/);
+      if (!m) { if (debug) debug.push(`html ${symbol} no root.App.main for u${i}`); continue; }
+      try { page = JSON.parse(m[1]); break; } catch { if (debug) debug.push(`html ${symbol} JSON parse failed u${i}`); }
+    }
+    if (!page) return null;
+    const stores = page?.context?.dispatcher?.stores || {};
+    const qss = stores?.QuoteSummaryStore || {};
+    const price = qss?.price || {};
+    const sd = qss?.summaryDetail || {};
+    const ks = qss?.defaultKeyStatistics || {};
     const out: any = {
       symbol,
       shortName: price.shortName,
       longName: price.longName,
       trailingPE: typeof (ks.trailingPE?.raw) === 'number' ? ks.trailingPE.raw : (typeof sd.trailingPE?.raw === 'number' ? sd.trailingPE.raw : undefined),
-      epsTTM: typeof (ks.trailingEps?.raw) === 'number' ? ks.trailingEps.raw : undefined,
+      epsTTM: typeof (ks.trailingEps?.raw) === 'number' ? ks.trailingEps.raw : (typeof price.epsTrailingTwelveMonths?.raw === 'number' ? price.epsTrailingTwelveMonths.raw : undefined),
       dividendYield: typeof (sd.dividendYield?.raw) === 'number' ? sd.dividendYield.raw * 100 : undefined,
       beta: typeof (ks.beta?.raw) === 'number' ? ks.beta.raw : undefined,
       fiftyTwoWeekHigh: typeof (sd.fiftyTwoWeekHigh?.raw) === 'number' ? sd.fiftyTwoWeekHigh.raw : (typeof price.fiftyTwoWeekHigh?.raw === 'number' ? price.fiftyTwoWeekHigh.raw : undefined),
@@ -99,10 +167,52 @@ async function fetchYahooQuoteSummary(symbol: string) {
       currency: price.currency,
     };
     return out;
-  } catch { return null; }
+  } catch (e: any) { if (debug) debug.push(`html ${symbol} failed: ${e?.message || 'error'}`); return null; }
 }
 
-async function enrichWithQuoteSummary(items: any[]) {
+async function fetchYahooQuoteSummary(symbol: string, debug?: string[]) {
+  try {
+    const variants = [
+      `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=price,summaryDetail,defaultKeyStatistics,financialData&region=US&corsDomain=finance.yahoo.com`,
+      `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=price,summaryDetail,defaultKeyStatistics,financialData&region=US&corsDomain=finance.yahoo.com`,
+      `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=price,summaryDetail,defaultKeyStatistics,financialData`,
+    ];
+    let lastErr: any = null;
+    for (let i = 0; i < variants.length; i++) {
+      try {
+        const res = await fetch(variants[i], {
+          headers: { "User-Agent": "justbuyyourstockbro", "Accept": "application/json" },
+          cache: "no-store",
+        });
+        if (!res.ok) { lastErr = new Error(`status ${res.status}`); if (debug) debug.push(`quoteSummary ${symbol} variant${i} status ${res.status}`); continue; }
+        const j = await res.json();
+        const r = j?.quoteSummary?.result?.[0];
+        if (!r) { lastErr = new Error('no result'); if (debug) debug.push(`quoteSummary ${symbol} variant${i} no result`); continue; }
+        const price = r.price || {};
+        const sd = r.summaryDetail || {};
+        const ks = r.defaultKeyStatistics || {};
+        const fd = r.financialData || {};
+        const out: any = {
+          symbol,
+          shortName: price.shortName,
+          longName: price.longName,
+          trailingPE: typeof (ks.trailingPE?.raw) === 'number' ? ks.trailingPE.raw : (typeof sd.trailingPE?.raw === 'number' ? sd.trailingPE.raw : undefined),
+          epsTTM: typeof (ks.trailingEps?.raw) === 'number' ? ks.trailingEps.raw : (typeof price.epsTrailingTwelveMonths?.raw === 'number' ? price.epsTrailingTwelveMonths.raw : undefined),
+          dividendYield: typeof (sd.dividendYield?.raw) === 'number' ? sd.dividendYield.raw * 100 : (typeof fd.dividendYield?.raw === 'number' ? fd.dividendYield.raw * 100 : undefined),
+          beta: typeof (ks.beta?.raw) === 'number' ? ks.beta.raw : undefined,
+          fiftyTwoWeekHigh: typeof (sd.fiftyTwoWeekHigh?.raw) === 'number' ? sd.fiftyTwoWeekHigh.raw : (typeof price.fiftyTwoWeekHigh?.raw === 'number' ? price.fiftyTwoWeekHigh.raw : undefined),
+          fiftyTwoWeekLow: typeof (sd.fiftyTwoWeekLow?.raw) === 'number' ? sd.fiftyTwoWeekLow.raw : (typeof price.fiftyTwoWeekLow?.raw === 'number' ? price.fiftyTwoWeekLow.raw : undefined),
+          currency: price.currency,
+        };
+        return out;
+      } catch (e) { lastErr = e; }
+      await new Promise((r) => setTimeout(r, 200 * (i + 1)));
+    }
+    throw lastErr || new Error('quoteSummary failed');
+  } catch (e: any) { if (debug) debug.push(`quoteSummary ${symbol} failed: ${e?.message || 'error'}`); return null; }
+}
+
+async function enrichWithQuoteSummary(items: any[], debug?: string[]) {
   const out = [...items];
   const missingIdxs: number[] = [];
   for (let i = 0; i < out.length; i++) {
@@ -126,7 +236,9 @@ async function enrichWithQuoteSummary(items: any[]) {
     if (!sym) continue;
     // small pacing
     await new Promise((r) => setTimeout(r, 80));
-    const s = await fetchYahooQuoteSummary(sym);
+    let s = await fetchYahooQuoteSummary(sym, debug);
+    if (!s) s = await fetchYahooFinancePageSummary(sym, debug);
+    if (!s) s = await fetchFmpProfile(sym, debug);
     if (s) {
       out[i] = {
         ...out[i],
@@ -140,6 +252,8 @@ async function enrichWithQuoteSummary(items: any[]) {
         fiftyTwoWeekLow: typeof out[i].fiftyTwoWeekLow === 'number' ? out[i].fiftyTwoWeekLow : s.fiftyTwoWeekLow,
         currency: out[i].currency ?? s.currency,
       };
+    } else if (debug) {
+      debug.push(`quoteSummary missing for ${sym}`);
     }
   }
   return out;
@@ -216,8 +330,30 @@ async function enrichWithHistory(origin: string, items: any[]) {
 
 export async function GET(req: Request) {
   try {
+    // Fallback: if env not present, try to load from .env.local manually (dev convenience)
+    if (!process.env.FMP_API_KEY || !process.env.MISTRAL_API_KEY) {
+      try {
+        const cwd = process.cwd();
+        const envPath = path.join(cwd, ".env.local");
+        if (fs.existsSync(envPath)) {
+          const raw = fs.readFileSync(envPath, "utf8");
+          for (const line of raw.split(/\n+/)) {
+            const l = line.trim();
+            if (!l || l.startsWith('#')) continue;
+            const eq = l.indexOf('=');
+            if (eq <= 0) continue;
+            const k = l.slice(0, eq).trim();
+            const v = l.slice(eq + 1).trim();
+            if (!(k in process.env)) {
+              process.env[k] = v;
+            }
+          }
+        }
+      } catch {}
+    }
     const { searchParams } = new URL(req.url);
     const symbolsStr = searchParams.get("symbols");
+    const debugMode = searchParams.get("debug") === '1' || searchParams.get("debug") === 'true';
     if (!symbolsStr) return NextResponse.json({ items: [] });
 
     const symbols = symbolsStr.split(",").map((s) => s.trim()).filter(Boolean);
@@ -227,6 +363,15 @@ export async function GET(req: Request) {
 
     const allItems: any[] = [];
     const errors: string[] = [];
+    const debugInfo: string[] = [];
+    if (debugMode) {
+      const cwd = process.cwd();
+      const envPath = path.join(cwd, ".env.local");
+      const exists = fs.existsSync(envPath);
+      debugInfo.push(`env FMP_API_KEY present=${Boolean(process.env.FMP_API_KEY)}`);
+      debugInfo.push(`cwd=${cwd}`);
+      debugInfo.push(`envFileExists=${exists} at ${envPath}`);
+    }
     for (let bi = 0; bi < chunks.length; bi++) {
       const batch = chunks[bi];
       try {
@@ -270,7 +415,7 @@ export async function GET(req: Request) {
           if (!isFinite(changePercent) && isFinite(change) && isFinite(prevClose) && prevClose !== 0) {
             changePercent = (change / prevClose) * 100;
           }
-          return {
+          const item = {
             symbol: q.symbol,
             shortName: q.shortName,
             price,
@@ -283,7 +428,15 @@ export async function GET(req: Request) {
             beta: typeof q.beta === 'number' ? q.beta : undefined,
             fiftyTwoWeekHigh: typeof q.fiftyTwoWeekHigh === 'number' ? q.fiftyTwoWeekHigh : undefined,
             fiftyTwoWeekLow: typeof q.fiftyTwoWeekLow === 'number' ? q.fiftyTwoWeekLow : undefined,
-          };
+          } as any;
+          if (debugMode && (
+              typeof item.trailingPE !== 'number' ||
+              typeof item.epsTTM !== 'number' ||
+              typeof item.dividendYield !== 'number' ||
+              typeof item.beta !== 'number')) {
+            debugInfo.push(`v7 missing fundamentals for ${q.symbol}: trailingPE=${q.trailingPE}, epsTTM=${q.epsTrailingTwelveMonths}, dividendYield=${q.trailingAnnualDividendYield}, beta=${q.beta}`);
+          }
+          return item;
         });
         // Fallback: if this batch yielded no items, try per-symbol fetches
         if (!items.length) {
@@ -403,18 +556,18 @@ export async function GET(req: Request) {
       if (out.length) {
         // Enrich fundamentals where possible
         const origin = new URL(req.url).origin;
-        const enrichedOut = await enrichWithQuoteSummary(out);
+        const enrichedOut = await enrichWithQuoteSummary(out, debugMode ? debugInfo : undefined);
         const finalOut = await enrichWithHistory(origin, enrichedOut);
-        return NextResponse.json({ items: finalOut });
+        return NextResponse.json(debugMode ? { items: finalOut, debug: debugInfo } : { items: finalOut });
       }
       // Soft-fail: return 200 with empty items and an error message for clients to handle gracefully
       return NextResponse.json({ items: [], error: errors.join("; ") || "failed" });
     }
     // Enrich fundamentals and compute 52W/changePercent from history if missing
     const origin = new URL(req.url).origin;
-    const enriched = await enrichWithQuoteSummary(allItems);
+    const enriched = await enrichWithQuoteSummary(allItems, debugMode ? debugInfo : undefined);
     const final = await enrichWithHistory(origin, enriched);
-    return NextResponse.json({ items: final });
+    return NextResponse.json(debugMode ? { items: final, debug: debugInfo } : { items: final });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "failed" }, { status: 500 });
   }
