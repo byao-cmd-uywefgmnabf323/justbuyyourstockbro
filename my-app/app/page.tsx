@@ -110,7 +110,18 @@ export default function ChatPage() {
 
   const riskLevels = ["Low", "Medium", "High"];
 
-  // (already declared above, remove duplicate)
+  const dismissIntro = () => {
+    try {
+      window.localStorage.setItem("jbysb_intro_dismissed", "1");
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('intro');
+        window.history.replaceState({}, '', url.toString());
+      }
+    } catch {}
+    setShowIntro(false);
+  };
+
   // --- Chat-first UI ---
   return (
     <main className="min-h-screen flex flex-col items-center justify-center min-h-screen bg-background px-4">
@@ -299,19 +310,6 @@ export default function ChatPage() {
     loadBaseline([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const dismissIntro = () => {
-    try {
-      window.localStorage.setItem("jbysb_intro_dismissed", "1");
-      // Remove ?intro=1 from URL if present
-      const url = new URL(window.location.href);
-      if (url.searchParams.has("intro")) {
-        url.searchParams.delete("intro");
-        window.history.replaceState({}, "", url.toString());
-      }
-    } catch {}
-    setShowIntro(false);
-  };
 
   const generate = async () => {
     setLoading(true);
