@@ -224,7 +224,7 @@ export default function RecommendPage() {
     const interval = setInterval(async () => {
       const merged = await refreshQuotesForResults(results);
       if (!cancelled) setResults(Array.isArray(merged) ? merged : []);
-    }, 1000);
+    }, 10000);
     return () => { cancelled = true; clearInterval(interval); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resultsKey, recLoading]);
