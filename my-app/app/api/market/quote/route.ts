@@ -12,6 +12,21 @@ const COINGECKO_SIMPLE = (ids: string[]) => `https://api.coingecko.com/api/v3/si
 const FMP_PROFILE = (s: string, k: string) => `https://financialmodelingprep.com/api/v3/profile/${encodeURIComponent(s)}?apikey=${encodeURIComponent(k)}`;
 const FMP_QUOTE = (s: string, k: string) => `https://financialmodelingprep.com/api/v3/quote/${encodeURIComponent(s)}?apikey=${encodeURIComponent(k)}`;
 const FMP_RATIOS_TTM = (s: string, k: string) => `https://financialmodelingprep.com/api/v3/ratios-ttm/${encodeURIComponent(s)}?apikey=${encodeURIComponent(k)}`;
+const FMP_DIVIDENDS = (s: string, k: string) => `https://financialmodelingprep.com/api/v3/historical-price-full/stock_dividend/${encodeURIComponent(s)}?apikey=${encodeURIComponent(k)}&serietype=line`;
+
+// Simple in-memory cache for fundamentals to reduce external calls in serverless
+const FUND_CACHE = new Map<string, { data: any; ts: number }>();
+const FUND_TTL_MS = 15 * 60 * 1000; // 15 minutes
+const now = () => Date.now();
+function getFundFromCache(sym: string): any | null {
+  const rec = FUND_CACHE.get(sym);
+  if (!rec) return null;
+  if (now() - rec.ts > FUND_TTL_MS) { FUND_CACHE.delete(sym); return null; }
+  return rec.data;
+}
+function setFundCache(sym: string, data: any) {
+  FUND_CACHE.set(sym, { data, ts: now() });
+}
 
 const mapCryptoId = (sym: string): string | null => {
   const m: Record<string, string> = {
@@ -76,7 +91,11 @@ async function fetchFmpProfile(symbol: string, debug?: string[]) {
     const key = process.env.FMP_API_KEY;
     if (!key) { if (debug) debug.push(`fmp ${symbol} skipped: no FMP_API_KEY`); return null; }
     const res = await fetch(FMP_PROFILE(symbol, key), { cache: 'no-store' });
-    if (!res.ok) { if (debug) debug.push(`fmp ${symbol} profile status ${res.status}`); return null; }
+    if (!res.ok) {
+      if (debug) debug.push(`fmp ${symbol} profile status ${res.status}`);
+      if (res.status === 429) return null; // rate limited; bail quickly
+      return null;
+    }
     const j = await res.json();
     const row = Array.isArray(j) ? j[0] : null;
     if (!row) { if (debug) debug.push(`fmp ${symbol} profile empty`); return null; }
@@ -122,6 +141,28 @@ async function fetchFmpProfile(symbol: string, debug?: string[]) {
     if (debug) debug.push(`fmp ${symbol} failed: ${e?.message || 'error'}`);
     return null;
   }
+}
+
+// Compute dividend yield using last 365 days dividends from FMP and current price
+async function fetchDividendYieldTTM(symbol: string, price: number, debug?: string[]) {
+  try {
+    const key = process.env.FMP_API_KEY;
+    if (!key) return undefined;
+    const res = await fetch(FMP_DIVIDENDS(symbol, key), { cache: 'no-store' });
+    if (!res.ok) { if (debug) debug.push(`fmp ${symbol} dividends status ${res.status}`); return undefined; }
+    const j = await res.json();
+    const arr: any[] = Array.isArray(j?.historical) ? j.historical : [];
+    if (!arr.length || !isFinite(price) || price <= 0) return undefined;
+    const cutoff = Date.now() - 365 * 24 * 60 * 60 * 1000;
+    let sum = 0;
+    for (const d of arr) {
+      const dt = Date.parse(d?.date);
+      const div = Number(d?.dividend ?? d?.adjDividend);
+      if (isFinite(dt) && dt >= cutoff && isFinite(div)) sum += div;
+    }
+    if (sum > 0) return (sum / price) * 100;
+    return undefined;
+  } catch { return undefined; }
 }
 
 // Fallback: scrape Yahoo Finance HTML and parse embedded JSON (root.App.main)
@@ -215,6 +256,7 @@ async function fetchYahooQuoteSummary(symbol: string, debug?: string[]) {
 async function enrichWithQuoteSummary(items: any[], debug?: string[]) {
   const out = [...items];
   const missingIdxs: number[] = [];
+  const isProd = process.env.NODE_ENV === 'production';
   for (let i = 0; i < out.length; i++) {
     const it = out[i];
     const equ = isEquitySymbol(it?.symbol);
@@ -236,9 +278,19 @@ async function enrichWithQuoteSummary(items: any[], debug?: string[]) {
     if (!sym) continue;
     // small pacing
     await new Promise((r) => setTimeout(r, 80));
-    let s = await fetchYahooQuoteSummary(sym, debug);
-    if (!s) s = await fetchYahooFinancePageSummary(sym, debug);
-    if (!s) s = await fetchFmpProfile(sym, debug);
+    // Cache first
+    let s = getFundFromCache(sym);
+    if (!s) {
+      if (isProd) {
+        // In production, skip Yahoo enrichment to reduce wasted calls and rate limits
+        s = await fetchFmpProfile(sym, debug);
+      } else {
+        s = await fetchYahooQuoteSummary(sym, debug);
+        if (!s) s = await fetchYahooFinancePageSummary(sym, debug);
+        if (!s) s = await fetchFmpProfile(sym, debug);
+      }
+      if (s) setFundCache(sym, s);
+    }
     if (s) {
       out[i] = {
         ...out[i],
@@ -252,6 +304,12 @@ async function enrichWithQuoteSummary(items: any[], debug?: string[]) {
         fiftyTwoWeekLow: typeof out[i].fiftyTwoWeekLow === 'number' ? out[i].fiftyTwoWeekLow : s.fiftyTwoWeekLow,
         currency: out[i].currency ?? s.currency,
       };
+      // If dividend still missing and we have price, compute TTM dividend yield via FMP dividend history
+      const priceNow = Number(out[i]?.price);
+      if (!(typeof out[i].dividendYield === 'number') && isFinite(priceNow)) {
+        const dy = await fetchDividendYieldTTM(sym, priceNow, debug);
+        if (typeof dy === 'number' && isFinite(dy)) out[i].dividendYield = dy;
+      }
     } else if (debug) {
       debug.push(`quoteSummary missing for ${sym}`);
     }
