@@ -62,7 +62,6 @@ export default function ChatBox() {
             // Ensure key exists so /recommend doesn't show empty state without context
             try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify([])); } catch {}
           }
-          try { await router.push("/recommend"); } catch {}
         }
       }
     } catch (e) {
