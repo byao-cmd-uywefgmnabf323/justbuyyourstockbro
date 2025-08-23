@@ -23,26 +23,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Call OpenAI REST API directly to avoid extra dependencies
-        const resp = await fetch("https://api.mistral.ai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "mistral-medium-latest",
-        temperature: 0.7,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          ...messages.map((m: any) => ({ role: m.role, content: m.content })),
-        ],
-      }),
-    });
-    const data = await resp.json();
-    let reply: string = data.choices?.[0]?.message?.content ?? "Sorry, I couldn't think of a reply.";
-    if (reply.includes("<recommend/>")) {
-      reply = "I'm now generating your personalized stock recommendations. You will be redirected to your results. <recommend/>";
-    }
+        const reply = "I'm now generating your personalized stock recommendations. You will be redirected to your results. <recommend/>";
     return NextResponse.json({ reply });
   } catch (e: any) {
     console.error("/api/anchor error", e);
