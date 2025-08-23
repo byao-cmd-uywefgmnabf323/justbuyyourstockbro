@@ -14,13 +14,6 @@ export default function RecommendPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  const startNew = () => {
-    try {
-      window.localStorage.removeItem("jbysb_last_recs");
-      window.sessionStorage.removeItem("jbysb_last_chat");
-    } catch {}
-    router.push("/");
-  };
 
   // Compute 1W and 1M percent changes from daily history (approx 5 and 21 trading days)
   const computeAndMergePeriodChanges = async (baseResults: any[]) => {
@@ -139,11 +132,12 @@ export default function RecommendPage() {
         const CLIENT_FALLBACK = [
           { symbol: "AAPL", name: "Apple", price: "---", high52w: "---", low52w: "---", change1D: "+0.5%", change1W: "+1.3%", change1M: "+4.2%", pe: 29, eps: 6.2, dy: 0.6, marketCap: "$2.9T", sector: "Technology", beta: 1.2, reasoning: "Blue-chip tech with resilient cash flows.", fit_reason: "Stability + growth.", signal: "Buy", type: "equity" },
           { symbol: "MSFT", name: "Microsoft", price: "---", high52w: "---", low52w: "---", change1D: "+0.3%", change1W: "+2.1%", change1M: "+6.0%", pe: 32, eps: 9.8, dy: 0.8, marketCap: "$3.1T", sector: "Technology", beta: 0.9, reasoning: "Cloud/enterprise leader with recurring revenue.", fit_reason: "Long-term compounding.", signal: "Buy", type: "equity" },
-          { symbol: "NVDA", name: "NVIDIA", price: "---", high52w: "---", low52w: "---", change1D: "+1.0%", change1W: "+3.5%", change1M: "+12.0%", pe: 40, eps: 8.0, dy: 0.1, marketCap: "$2.2T", sector: "Technology", beta: 1.7, reasoning: "AI/data center tailwinds; high volatility.", fit_reason: "Growth exposure.", signal: "Buy", type: "equity" },
-          { symbol: "JNJ", name: "Johnson & Johnson", price: "---", high52w: "---", low52w: "---", change1D: "-0.2%", change1W: "+0.8%", change1M: "+2.0%", pe: 18, eps: 7.2, dy: 2.8, marketCap: "$380B", sector: "Healthcare", beta: 0.6, reasoning: "Defensive healthcare with dividend stability.", fit_reason: "Lower volatility core.", signal: "Hold", type: "equity" },
-          { symbol: "V", name: "Visa", price: "---", high52w: "---", low52w: "---", change1D: "+0.4%", change1W: "+1.0%", change1M: "+3.1%", pe: 31, eps: 8.1, dy: 0.7, marketCap: "$570B", sector: "Financials", beta: 0.95, reasoning: "Global payments secular growth.", fit_reason: "Quality compounding.", signal: "Buy", type: "equity" },
+          { symbol: "GOOGL", name: "Alphabet (Google)", price: "---", high52w: "---", low52w: "---", change1D: "+0.8%", change1W: "+1.5%", change1M: "+5.5%", pe: 27, eps: 5.8, dy: null, marketCap: "$1.8T", sector: "Technology", beta: 1.05, reasoning: "Dominant in search and digital advertising.", fit_reason: "Core tech holding.", signal: "Buy", type: "equity" },
+          { symbol: "AMZN", name: "Amazon", price: "---", high52w: "---", low52w: "---", change1D: "+1.2%", change1W: "+2.8%", change1M: "+8.0%", pe: 55, eps: 3.5, dy: null, marketCap: "$1.9T", sector: "Consumer Discretionary", beta: 1.15, reasoning: "Leader in e-commerce and cloud (AWS).", fit_reason: "Growth and diversification.", signal: "Buy", type: "equity" },
+          { symbol: "TSLA", name: "Tesla", price: "---", high52w: "---", low52w: "---", change1D: "-1.5%", change1W: "-4.0%", change1M: "+15.0%", pe: 65, eps: 4.3, dy: null, marketCap: "$800B", sector: "Consumer Discretionary", beta: 2.0, reasoning: "EV market leader with high growth potential.", fit_reason: "High-risk, high-reward.", signal: "Hold", type: "equity" },
+          { symbol: "JPM", name: "JPMorgan Chase", price: "---", high52w: "---", low52w: "---", change1D: "-0.5%", change1W: "+0.5%", change1M: "+2.5%", pe: 11, eps: 15.0, dy: 3.0, marketCap: "$450B", sector: "Financials", beta: 1.0, reasoning: "Largest US bank, diversified financial services.", fit_reason: "Financial sector exposure.", signal: "Hold", type: "equity" },
+          { symbol: "PG", name: "Procter & Gamble", price: "---", high52w: "---", low52w: "---", change1D: "+0.1%", change1W: "+0.2%", change1M: "+1.5%", pe: 24, eps: 6.0, dy: 2.5, marketCap: "$360B", sector: "Consumer Staples", beta: 0.4, reasoning: "Defensive stock with strong brand portfolio.", fit_reason: "Low volatility and income.", signal: "Buy", type: "equity" },
           { symbol: "BTC-USD", name: "Bitcoin", price: "---", high52w: "---", low52w: "---", change1D: "+2.0%", change1W: "+5.0%", change1M: "+18.0%", pe: null, eps: null, dy: null, marketCap: "$1.2T", sector: "Crypto", beta: 2.1, reasoning: "High-risk diversification; volatile.", fit_reason: "Risk-tolerant slice.", signal: "Hold", type: "crypto" },
-          { symbol: "ETH-USD", name: "Ethereum", price: "---", high52w: "---", low52w: "---", change1D: "+1.2%", change1W: "+3.8%", change1M: "+12.5%", pe: null, eps: null, dy: null, marketCap: "$400B", sector: "Crypto", beta: 2.0, reasoning: "Smart contracts/DeFi platform.", fit_reason: "Tech-forward exposure.", signal: "Hold", type: "crypto" },
         ];
         const saved = window.localStorage.getItem("jbysb_last_recs");
         if (saved) {
@@ -228,7 +222,6 @@ export default function RecommendPage() {
     <main className="min-h-screen py-10 px-4 bg-background">
       <div className="flex flex-col md:flex-row justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-charcoal">Your AI-Tailored Stock Ideas</h1>
-        <button type="button" onClick={startNew} className="mt-4 md:mt-0 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">Start New Session</button>
       </div>
 
       <section className="mb-10">

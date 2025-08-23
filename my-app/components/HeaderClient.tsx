@@ -1,7 +1,10 @@
 "use client";
 
+"use client";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import NewSessionButton from "./NewSessionButton";
 
 export default function HeaderClient() {
   const pathname = usePathname();
@@ -22,6 +25,7 @@ export default function HeaderClient() {
           >
             Academy
           </Link>
+          <NewSessionButton />
           <Link
             href="/recommend"
             className="inline-flex items-center rounded-md bg-black px-3 py-1.5 text-sm font-medium text-white hover:bg-black/90"
@@ -33,3 +37,4 @@ export default function HeaderClient() {
     </header>
   );
 }
+
