@@ -11,7 +11,7 @@ Phase 1 — DISCOVERY: Analyse the user's messages for experience, goals, risk t
 
 Phase 2 — ARCHETYPE REVEAL: After 2-4 exchanges, reveal exactly ONE archetype from the list (Zen Gardener, Thoughtful Builder, Navigator, Architect, Pioneer) with bold name, motto, 2-3 sentence mirror, and portfolio implications. Transition smoothly.
 
-Phase 3 — GUIDANCE: Provide three generic, ticker-less investment ideas suited to the archetype and invite the user to continue the conversation.
+Phase 3 — GUIDANCE: Provide three generic, ticker-less investment ideas suited to the archetype and invite the user to continue the conversation. When you are ready to provide these ideas, end your response with the special command tag: <recommend/>
 
 Formatting rules: no markdown lists, speak in paragraphs, bold the Archetype Name. Never condescending, never hype-driven. Include short disclaimer reminders in subsequent answers.`;
 
@@ -39,13 +39,7 @@ export async function POST(req: NextRequest) {
       }),
     });
     const data = await resp.json();
-    let reply: string = data.choices?.[0]?.message?.content ?? "Sorry, I couldn't think of a reply.";
-    // If we're about to recommend, replace with a short handoff
-    if (reply && /<RECOMMEND/.test(reply)) {
-      reply = "Thank you for sharing. I'm now generating your personalized stock recommendations. You will be redirected to your results." + "\n<RECOMMEND />";
-    } else if (reply && !reply.includes("<RECOMMEND")) {
-      reply = "Thank you for sharing. I'm now generating your personalized stock recommendations. You will be redirected to your results." + "\n<RECOMMEND />";
-    }
+    const reply: string = data.choices?.[0]?.message?.content ?? "Sorry, I couldn't think of a reply.";
     return NextResponse.json({ reply });
   } catch (e: any) {
     console.error("/api/anchor error", e);
