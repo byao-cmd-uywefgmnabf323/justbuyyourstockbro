@@ -36,7 +36,7 @@ export default function ChatBox() {
       const data = await res.json();
       if (data.reply) {
         setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
-        const shouldNavigate = /navigating you to the recommended stocks page/i.test(data.reply);
+        const shouldNavigate = /<recommend\/>/i.test(data.reply);
 
         if (shouldNavigate) {
           if (navigatedRef.current) return; // prevent duplicate triggers
