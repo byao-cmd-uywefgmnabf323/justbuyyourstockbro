@@ -36,10 +36,12 @@ export default function ChatBox() {
       const data = await res.json();
       if (data.reply) {
         setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
-        const shouldRecommend = /<\s*recommend\b/i.test(data.reply);
-        if (shouldRecommend) {
+        const shouldNavigate = /navigating you to the recommended stocks page/i.test(data.reply);
+
+        if (shouldNavigate) {
           if (navigatedRef.current) return; // prevent duplicate triggers
           navigatedRef.current = true;
+
           // Persist latest chat so /recommend can refetch if needed
           const latestChat = [...messages, userMsg].slice(-10);
           try { window.sessionStorage.setItem("jbysb_last_chat", JSON.stringify(latestChat)); } catch {}
@@ -58,10 +60,14 @@ export default function ChatBox() {
               saved = true;
             }
           } catch {}
+
           if (!saved) {
             // Ensure key exists so /recommend doesn't show empty state without context
             try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify([])); } catch {}
           }
+
+          // Navigate to the recommendations page
+          try { await router.push("/recommend"); } catch {}
         }
       }
     } catch (e) {
