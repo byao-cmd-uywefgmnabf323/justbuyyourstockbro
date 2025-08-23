@@ -38,9 +38,7 @@ export default function AIAdvisor() {
 
   const execute = async (acts: AdviceAction[]) => {
     for (const a of acts) {
-      if (a.type === "navigate") {
-        router.push(a.data.to);
-      } else if (a.type === "add_to_watchlist") {
+      if (a.type === "add_to_watchlist") {
         const sym = a.data.symbol;
         const q = await fetchQuote(sym);
         const rec: Recommendation = {
