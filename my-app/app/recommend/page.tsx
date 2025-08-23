@@ -10,6 +10,7 @@ export default function RecommendPage() {
   const router = useRouter();
   const [results, setResults] = useState<any[]>([]);
   const [recLoading, setRecLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -107,9 +108,9 @@ export default function RecommendPage() {
   };
 
   // helper to refetch from session chat on demand
-  const refetchFromSession = async () => {
+  const refetchFromSession = async (): Promise<boolean> => {
     const chatRaw = window.sessionStorage.getItem("jbysb_last_chat");
-    if (!chatRaw) return;
+    if (!chatRaw) return false;
     setRecLoading(true);
     try {
       const chat = JSON.parse(chatRaw);
@@ -119,10 +120,14 @@ export default function RecommendPage() {
         const merged = await refreshQuotesForResults(j.suggestions);
         setResults(Array.isArray(merged) ? merged : []);
         try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(merged)); } catch {}
+        return true;
       }
+    } catch {
+      // silent fail
     } finally {
       setRecLoading(false);
     }
+    return false;
   };
 
 
@@ -151,8 +156,10 @@ export default function RecommendPage() {
         }
         if (!baselineLoaded) {
           // Fallback: try to refetch using last chat from sessionStorage
-          await refetchFromSession();
-          baselineLoaded = true; // Assume it loaded or tried, to prevent fallback.
+          const didRefetch = await refetchFromSession();
+          if (didRefetch) {
+            baselineLoaded = true;
+          }
         }
         if (!baselineLoaded) {
           // And populate client fallback recs so the page never looks empty
@@ -174,6 +181,8 @@ export default function RecommendPage() {
         setResults(CLIENT_FALLBACK);
         try { setResults(await computeAndMergePeriodChanges(CLIENT_FALLBACK)); } catch {}
         try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(CLIENT_FALLBACK)); } catch {}
+      } finally {
+        setInitialLoading(false);
       }
     };
     init();
@@ -303,7 +312,7 @@ export default function RecommendPage() {
         </div>
       </section>
 
-      {recLoading ? (
+      {initialLoading || recLoading ? (
         <div className="text-center text-sm">
           <p>Getting your picks…</p>
         </div>
