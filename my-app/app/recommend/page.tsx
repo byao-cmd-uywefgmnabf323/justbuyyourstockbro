@@ -4,13 +4,23 @@ import React, { useEffect, useState } from "react";
 import PriceChart from "@/components/PriceChart";
 import InlineDef from "@/components/InlineDef";
 import ProjectionTool from "@/components/ProjectionTool";
+import { useRouter } from "next/navigation";
 
 export default function RecommendPage() {
+  const router = useRouter();
   const [results, setResults] = useState<any[]>([]);
   const [recLoading, setRecLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+
+  const startNew = () => {
+    try {
+      window.localStorage.removeItem("jbysb_last_recs");
+      window.sessionStorage.removeItem("jbysb_last_chat");
+    } catch {}
+    router.push("/");
+  };
 
   // Compute 1W and 1M percent changes from daily history (approx 5 and 21 trading days)
   const computeAndMergePeriodChanges = async (baseResults: any[]) => {
@@ -216,86 +226,95 @@ export default function RecommendPage() {
 
   return (
     <main className="min-h-screen py-10 px-4 bg-background">
-      <h1 className="text-2xl font-bold text-center mb-6 text-charcoal">Your AI-Tailored Stock Ideas</h1>
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-charcoal">Your AI-Tailored Stock Ideas</h1>
+        <button type="button" onClick={startNew} className="mt-4 md:mt-0 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">Start New Session</button>
+      </div>
 
-      {results.length>0 ? (
-        <section className="mb-10">
-          <h2 className="text-lg font-semibold mb-3 text-charcoal text-center">Recommendations</h2>
-          <div className="max-w-2xl mx-auto mb-4">
-            <form
-              onSubmit={(e)=>{e.preventDefault(); (async()=>{
-                const raw = searchQuery.trim();
-                if (!raw) return;
-                const tokens = raw.split(/[ ,\n\t]+/).filter(Boolean).slice(0,10);
-                const looksLikeTicker = (s: string) => /^[A-Z0-9=.-]+$/.test(s) && s.toUpperCase() === s;
-                let symbols = tokens.filter(t => looksLikeTicker(t)).map(t=>t.toUpperCase());
-                setSearchLoading(true); setSearchResults([]);
-                try {
-                  if (symbols.length === 0) {
-                    // Fallback to name search
-                    const sres = await fetch(`/api/market/search?q=${encodeURIComponent(raw)}&_=${Date.now()}`, { cache: 'no-store' });
-                    const sj = await sres.json();
-                    const syms = Array.isArray(sj.items) ? sj.items.map((i:any)=>i.symbol) : [];
-                    symbols = syms.slice(0, 5);
-                  }
-                  if (symbols.length === 0) { setSearchResults([]); return; }
-                  const res = await fetch(`/api/market/quote?symbols=${encodeURIComponent(symbols.join(","))}&_=${Date.now()}`, { cache: "no-store" });
-                  const j = await res.json();
-                  const items = Array.isArray(j.items) ? j.items : [];
-                  const mapped = items.map((q: any) => ({
-                    type: String(q.symbol).endsWith("-USD") ? "crypto" : String(q.symbol).endsWith("=X") ? "forex" : "equity",
-                    symbol: q.symbol,
-                    name: q.longName || q.shortName || q.symbol,
-                    price: Number.isFinite(q.price) ? q.price : null,
-                    change1D: typeof q.changePercent === 'number' ? `${q.changePercent.toFixed(2)}%` : '—',
-                    change1W: '—',
-                    change1M: '—',
-                    rating: undefined,
-                    pe: typeof (q as any).trailingPE === 'number' && isFinite((q as any).trailingPE) ? (q as any).trailingPE : null,
-                    eps: typeof (q as any).epsTTM === 'number' && isFinite((q as any).epsTTM) ? (q as any).epsTTM : null,
-                    dy: typeof (q as any).dividendYield === 'number' && isFinite((q as any).dividendYield) ? (q as any).dividendYield : null,
-                    reasoning: '',
-                    signal: 'Hold',
-                  }));
-                  setSearchResults(mapped);
-                } catch { setSearchResults([]); }
-                finally { setSearchLoading(false); }
-              })(); }}
-              className="flex gap-2"
-            >
-              <input
-                value={searchQuery}
-                onChange={(e)=>setSearchQuery(e.target.value)}
-                placeholder="Search symbols, e.g., AAPL, MSFT"
-                className="flex-1 border border-gray-300 bg-white px-3 py-2 text-sm text-charcoal"
-              />
-              <button type="submit" className="px-4 py-2 bg-black text-white text-sm">Search</button>
-            </form>
-            {searchLoading && <div className="mt-2 text-center text-xs text-black">Searching…</div>}
-            {!searchLoading && searchResults.length > 0 && (
-              <div className="mt-3 grid grid-cols-1 gap-3">
-                {searchResults.map((sr:any) => (
-                  <div key={`sr-${sr.symbol}`} className="flex flex-col md:flex-row items-stretch bg-white border border-gray-200 rounded p-3 gap-3">
-                    <div className="flex-1">
-                      <div className="text-lg font-semibold text-black">
-                        {sr.symbol} <span className="text-sm font-normal text-gray-800">{sr.name}</span>
-                      </div>
-                      <div className="mt-1 text-sm">
-                        <span className="font-semibold">{Number.isFinite(sr.price)? `$${sr.price.toFixed(2)}` : '—'}</span>
-                        <span className={`ml-2 ${String(sr.change1D || '').startsWith('-')? 'text-red-600':'text-green-600'}`}>{sr.change1D || '—'}</span>
-                      </div>
-                      <div className="mt-2">
-                        <a className="text-sm underline" href={`/symbol/${encodeURIComponent(sr.symbol)}`}>Open</a>
-                      </div>
+      <section className="mb-10">
+        <div className="max-w-2xl mx-auto">
+          <form
+            onSubmit={(e)=>{e.preventDefault(); (async()=>{
+              const raw = searchQuery.trim();
+              if (!raw) return;
+              const tokens = raw.split(/[ ,\n\t]+/).filter(Boolean).slice(0,10);
+              const looksLikeTicker = (s: string) => /^[A-Z0-9=.-]+$/.test(s) && s.toUpperCase() === s;
+              let symbols = tokens.filter(t => looksLikeTicker(t)).map(t=>t.toUpperCase());
+              setSearchLoading(true); setSearchResults([]);
+              try {
+                if (symbols.length === 0) {
+                  // Fallback to name search
+                  const sres = await fetch(`/api/market/search?q=${encodeURIComponent(raw)}&_=${Date.now()}`, { cache: 'no-store' });
+                  const sj = await sres.json();
+                  const syms = Array.isArray(sj.items) ? sj.items.map((i:any)=>i.symbol) : [];
+                  symbols = syms.slice(0, 5);
+                }
+                if (symbols.length === 0) { setSearchResults([]); return; }
+                const res = await fetch(`/api/market/quote?symbols=${encodeURIComponent(symbols.join(","))}&_=${Date.now()}`, { cache: "no-store" });
+                const j = await res.json();
+                const items = Array.isArray(j.items) ? j.items : [];
+                const mapped = items.map((q: any) => ({
+                  type: String(q.symbol).endsWith("-USD") ? "crypto" : String(q.symbol).endsWith("=X") ? "forex" : "equity",
+                  symbol: q.symbol,
+                  name: q.longName || q.shortName || q.symbol,
+                  price: Number.isFinite(q.price) ? q.price : null,
+                  change1D: typeof q.changePercent === 'number' ? `${q.changePercent.toFixed(2)}%` : '—',
+                  change1W: '—',
+                  change1M: '—',
+                  rating: undefined,
+                  pe: typeof (q as any).trailingPE === 'number' && isFinite((q as any).trailingPE) ? (q as any).trailingPE : null,
+                  eps: typeof (q as any).epsTTM === 'number' && isFinite((q as any).epsTTM) ? (q as any).epsTTM : null,
+                  dy: typeof (q as any).dividendYield === 'number' && isFinite((q as any).dividendYield) ? (q as any).dividendYield : null,
+                  reasoning: '',
+                  signal: 'Hold',
+                }));
+                setSearchResults(mapped);
+              } catch { setSearchResults([]); }
+              finally { setSearchLoading(false); }
+            })(); }}
+            className="flex gap-2"
+          >
+            <input
+              value={searchQuery}
+              onChange={(e)=>setSearchQuery(e.target.value)}
+              placeholder="Search symbols, e.g., AAPL, MSFT"
+              className="flex-1 border border-gray-300 bg-white px-3 py-2 text-sm text-charcoal"
+            />
+            <button type="submit" className="px-4 py-2 bg-black text-white text-sm">Search</button>
+          </form>
+          {searchLoading && <div className="mt-2 text-center text-xs text-black">Searching…</div>}
+          {!searchLoading && searchResults.length > 0 && (
+            <div className="mt-3 grid grid-cols-1 gap-3">
+              {searchResults.map((sr:any) => (
+                <div key={`sr-${sr.symbol}`} className="flex flex-col md:flex-row items-stretch bg-white border border-gray-200 rounded p-3 gap-3">
+                  <div className="flex-1">
+                    <div className="text-lg font-semibold text-black">
+                      {sr.symbol} <span className="text-sm font-normal text-gray-800">{sr.name}</span>
                     </div>
-                    <div className="min-w-[220px] flex items-center justify-center">
-                      <PriceChart symbol={sr.symbol} range="6mo" interval="1d" height={100} showMA={false} showEMA={false} showMACD={false} showRSI={false} />
+                    <div className="mt-1 text-sm">
+                      <span className="font-semibold">{Number.isFinite(sr.price)? `$${sr.price.toFixed(2)}` : '—'}</span>
+                      <span className={`ml-2 ${String(sr.change1D || '').startsWith('-')? 'text-red-600':'text-green-600'}`}>{sr.change1D || '—'}</span>
+                    </div>
+                    <div className="mt-2">
+                      <a className="text-sm underline" href={`/symbol/${encodeURIComponent(sr.symbol)}`}>Open</a>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  <div className="min-w-[220px] flex items-center justify-center">
+                    <PriceChart symbol={sr.symbol} range="6mo" interval="1d" height={100} showMA={false} showEMA={false} showMACD={false} showRSI={false} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {recLoading ? (
+        <div className="text-center text-sm">
+          <p>Getting your picks…</p>
+        </div>
+      ) : results.length > 0 ? (
+        <section>
           <div className="flex flex-col gap-4">
             {results.map((rec:any)=> (
               <div key={rec.symbol} className="flex flex-col md:flex-row items-stretch bg-white border border-gray-200 rounded-lg shadow p-4 gap-4">
@@ -370,16 +389,12 @@ export default function RecommendPage() {
         </section>
       ) : (
         <div className="text-center text-sm">
-          {recLoading ? (
-            <p>Getting your picks…</p>
-          ) : (
-            <div className="space-y-3">
-              <p>No saved recommendations.</p>
-              <div className="flex justify-center gap-3">
-                <button className="px-4 py-2 bg-black text-white rounded" onClick={refetchFromSession}>Try again</button>
-              </div>
+          <div className="space-y-3">
+            <p>No saved recommendations.</p>
+            <div className="flex justify-center gap-3">
+              <button className="px-4 py-2 bg-black text-white rounded" onClick={refetchFromSession}>Try again</button>
             </div>
-          )}
+          </div>
         </div>
       )}
     </main>
