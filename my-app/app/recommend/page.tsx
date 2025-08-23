@@ -146,23 +146,8 @@ export default function RecommendPage() {
         }
         if (!baselineLoaded) {
           // Fallback: try to refetch using last chat from sessionStorage
-          const chatRaw = window.sessionStorage.getItem("jbysb_last_chat");
-          if (chatRaw) {
-            setRecLoading(true);
-            try {
-              const chat = JSON.parse(chatRaw);
-              const r = await fetch("/api/ai/recommend", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat }) });
-              const j = await r.json();
-              if (Array.isArray(j.suggestions) && j.suggestions.length) {
-                setResults(j.suggestions);
-                try { setResults(await computeAndMergePeriodChanges(j.suggestions)); } catch {}
-                try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(j.suggestions)); } catch {}
-                baselineLoaded = true;
-              }
-            } finally {
-              setRecLoading(false);
-            }
-          }
+          await refetchFromSession();
+          baselineLoaded = true; // Assume it loaded or tried, to prevent fallback.
         }
         if (!baselineLoaded) {
           // And populate client fallback recs so the page never looks empty
