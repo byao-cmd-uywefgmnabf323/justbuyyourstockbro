@@ -166,25 +166,12 @@ export default function RecommendPage() {
           }
         }
         if (!baselineLoaded) {
-          // And populate client fallback recs so the page never looks empty
-          setResults(CLIENT_FALLBACK);
-          try { setResults(await computeAndMergePeriodChanges(CLIENT_FALLBACK)); } catch {}
-          try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(CLIENT_FALLBACK)); } catch {}
+          // Show empty state instead of hardcoded fallback
+          setResults([]);
         }
       } catch {
-        // As a last resort, also set client fallback recs
-        const CLIENT_FALLBACK = [
-          { symbol: "AAPL", name: "Apple", price: "---", change1D: "+0.5%", change1W: "+1.3%", change1M: "+4.2%", pe: 29, eps: 6.2, dy: 0.6, signal: "Buy", type: "equity" },
-          { symbol: "MSFT", name: "Microsoft", price: "---", change1D: "+0.3%", change1W: "+2.1%", change1M: "+6.0%", pe: 32, eps: 9.8, dy: 0.8, signal: "Buy", type: "equity" },
-          { symbol: "NVDA", name: "NVIDIA", price: "---", change1D: "+1.0%", change1W: "+3.5%", change1M: "+12.0%", pe: 40, eps: 8.0, dy: 0.1, signal: "Buy", type: "equity" },
-          { symbol: "JNJ", name: "Johnson & Johnson", price: "---", change1D: "-0.2%", change1W: "+0.8%", change1M: "+2.0%", pe: 18, eps: 7.2, dy: 2.8, signal: "Hold", type: "equity" },
-          { symbol: "V", name: "Visa", price: "---", change1D: "+0.4%", change1W: "+1.0%", change1M: "+3.1%", pe: 31, eps: 8.1, dy: 0.7, signal: "Buy", type: "equity" },
-          { symbol: "BTC-USD", name: "Bitcoin", price: "---", change1D: "+2.0%", change1W: "+5.0%", change1M: "+18.0%", signal: "Hold", type: "crypto" },
-          { symbol: "ETH-USD", name: "Ethereum", price: "---", change1D: "+1.2%", change1W: "+3.8%", change1M: "+12.5%", signal: "Hold", type: "crypto" },
-        ];
-        setResults(CLIENT_FALLBACK);
-        try { setResults(await computeAndMergePeriodChanges(CLIENT_FALLBACK)); } catch {}
-        try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(CLIENT_FALLBACK)); } catch {}
+        // Show empty state on error instead of hardcoded fallback
+        setResults([]);
       } finally {
         setInitialLoading(false);
       }

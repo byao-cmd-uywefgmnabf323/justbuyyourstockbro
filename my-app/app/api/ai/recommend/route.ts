@@ -53,7 +53,13 @@ export async function POST(req: Request) {
     const apiKey = process.env.MISTRAL_API_KEY;
     if (!apiKey) return NextResponse.json({ error: "Server missing MISTRAL_API_KEY" }, { status: 500 });
 
+    // Debug logging
+    console.log("=== AI RECOMMEND DEBUG ===");
+    console.log("Received body:", JSON.stringify(body, null, 2));
+    
     const userProfile = JSON.stringify(body);
+    console.log("User profile being sent to AI:", userProfile);
+
     const resp = await fetch("https://api.mistral.ai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -79,8 +85,10 @@ export async function POST(req: Request) {
     try {
       const data = JSON.parse(text);
       content = data?.choices?.[0]?.message?.content ?? "";
+      console.log("AI response content:", content);
     } catch {
       content = text;
+      console.log("Failed to parse AI response, raw text:", text);
     }
 
     let parsed: any = null;
