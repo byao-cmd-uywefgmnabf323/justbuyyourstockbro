@@ -22,39 +22,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "messages array required" }, { status: 400 });
     }
 
-    const apiKey = process.env.MISTRAL_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "Server missing MISTRAL_API_KEY" }, { status: 500 });
-    }
-
-    // Build conversation with system prompt
-    const conversation = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...messages
-    ];
-
-    const resp = await fetch("https://api.mistral.ai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "mistral-small-latest",
-        messages: conversation,
-        temperature: 0.7,
-        max_tokens: 400,
-      }),
-    });
-
-    if (!resp.ok) {
-      const errorText = await resp.text();
-      console.error("Mistral API error:", errorText);
-      return NextResponse.json({ error: "AI service unavailable" }, { status: 500 });
-    }
-
-    const data = await resp.json();
-    const reply = data?.choices?.[0]?.message?.content || "Sorry, I couldn't process that request.";
+    // Simple redirect message after user provides input
+    const reply = "Perfect! I'm now generating your personalized stock recommendations based on your preferences. Redirecting you to your AI-tailored stocks... <recommend/>";
     
     return NextResponse.json({ reply });
   } catch (e: any) {
