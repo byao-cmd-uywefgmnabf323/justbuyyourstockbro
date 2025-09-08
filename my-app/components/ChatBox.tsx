@@ -42,17 +42,24 @@ export default function ChatBox() {
           if (navigatedRef.current) return; // prevent duplicate triggers
           navigatedRef.current = true;
 
-          // Persist latest chat so /recommend can refetch if needed
-          const latestChat = [...messages, userMsg].slice(-10);
-          try { window.sessionStorage.setItem("jbysb_last_chat", JSON.stringify(latestChat)); } catch {}
+          // Extract user profile from the conversation
+          const fullConversation = [...messages, userMsg];
+          const userProfile = {
+            chat: fullConversation.slice(-10),
+            lastUserMessage: userMsg.content,
+            conversationLength: fullConversation.length
+          };
 
-          // Call recommendation endpoint with latest chat (include current user message)
+          // Persist latest chat so /recommend can refetch if needed
+          try { window.sessionStorage.setItem("jbysb_last_chat", JSON.stringify(userProfile.chat)); } catch {}
+
+          // Call recommendation endpoint with user profile
           let saved = false;
           try {
             const r = await fetch("/api/ai/recommend", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ chat: latestChat }),
+              body: JSON.stringify(userProfile),
             });
             const j = await r.json();
             if (Array.isArray(j.suggestions) && j.suggestions.length) {
