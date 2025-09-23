@@ -153,10 +153,14 @@ export default function RecommendPage() {
       const updated = await computeAndMergePeriodChanges(results);
       if (!cancelled) setResults(Array.isArray(updated) ? updated : results);
     };
+    // Run the first update in the background after a short delay
+    const initialTimeout = setTimeout(tick, 500);
     const interval = setInterval(tick, 60000);
-    // run once immediately
-    tick();
-    return () => { cancelled = true; clearInterval(interval); };
+    return () => {
+      cancelled = true;
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resultsKey]);
 
@@ -175,7 +179,7 @@ export default function RecommendPage() {
   return (
     <main className="min-h-screen py-10 px-4 bg-background">
       <div className="flex flex-col md:flex-row justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-charcoal">Your AI-Tailored Stock Ideas</h1>
+        <h1 className="text-2xl font-bold text-charcoal">Stock List</h1>
       </div>
 
       <section className="mb-10">
