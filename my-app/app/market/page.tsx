@@ -107,66 +107,23 @@ export default function RecommendPage() {
     } catch { return baseResults; }
   };
 
-  // helper to refetch from session chat on demand
-  const refetchFromSession = async (): Promise<boolean> => {
-    const chatRaw = window.sessionStorage.getItem("jbysb_last_chat");
-    if (!chatRaw) return false;
-    setRecLoading(true);
-    try {
-      const chat = JSON.parse(chatRaw);
-      const r = await fetch("/api/ai/recommend", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat }) });
-      const j = await r.json();
-      if (Array.isArray(j.suggestions) && j.suggestions.length) {
-        const merged = await refreshQuotesForResults(j.suggestions);
-        setResults(Array.isArray(merged) ? merged : []);
-        try { window.localStorage.setItem("jbysb_last_recs", JSON.stringify(merged)); } catch {}
-        return true;
-      }
-    } catch {
-      // silent fail
-    } finally {
-      setRecLoading(false);
-    }
-    return false;
-  };
-
-
   useEffect(()=>{
     const init = async () => {
+      setInitialLoading(true);
       try {
-        let baselineLoaded = false;
-        const CLIENT_FALLBACK = [
-          { symbol: "AAPL", name: "Apple", price: "---", high52w: "---", low52w: "---", change1D: "+0.5%", change1W: "+1.3%", change1M: "+4.2%", pe: 29, eps: 6.2, dy: 0.6, marketCap: "$2.9T", sector: "Technology", beta: 1.2, reasoning: "Blue-chip tech with resilient cash flows.", fit_reason: "Stability + growth.", signal: "Buy", type: "equity" },
-          { symbol: "MSFT", name: "Microsoft", price: "---", high52w: "---", low52w: "---", change1D: "+0.3%", change1W: "+2.1%", change1M: "+6.0%", pe: 32, eps: 9.8, dy: 0.8, marketCap: "$3.1T", sector: "Technology", beta: 0.9, reasoning: "Cloud/enterprise leader with recurring revenue.", fit_reason: "Long-term compounding.", signal: "Buy", type: "equity" },
-          { symbol: "GOOGL", name: "Alphabet (Google)", price: "---", high52w: "---", low52w: "---", change1D: "+0.8%", change1W: "+1.5%", change1M: "+5.5%", pe: 27, eps: 5.8, dy: null, marketCap: "$1.8T", sector: "Technology", beta: 1.05, reasoning: "Dominant in search and digital advertising.", fit_reason: "Core tech holding.", signal: "Buy", type: "equity" },
-          { symbol: "AMZN", name: "Amazon", price: "---", high52w: "---", low52w: "---", change1D: "+1.2%", change1W: "+2.8%", change1M: "+8.0%", pe: 55, eps: 3.5, dy: null, marketCap: "$1.9T", sector: "Consumer Discretionary", beta: 1.15, reasoning: "Leader in e-commerce and cloud (AWS).", fit_reason: "Growth and diversification.", signal: "Buy", type: "equity" },
-          { symbol: "TSLA", name: "Tesla", price: "---", high52w: "---", low52w: "---", change1D: "-1.5%", change1W: "-4.0%", change1M: "+15.0%", pe: 65, eps: 4.3, dy: null, marketCap: "$800B", sector: "Consumer Discretionary", beta: 2.0, reasoning: "EV market leader with high growth potential.", fit_reason: "High-risk, high-reward.", signal: "Hold", type: "equity" },
-          { symbol: "JPM", name: "JPMorgan Chase", price: "---", high52w: "---", low52w: "---", change1D: "-0.5%", change1W: "+0.5%", change1M: "+2.5%", pe: 11, eps: 15.0, dy: 3.0, marketCap: "$450B", sector: "Financials", beta: 1.0, reasoning: "Largest US bank, diversified financial services.", fit_reason: "Financial sector exposure.", signal: "Hold", type: "equity" },
-          { symbol: "PG", name: "Procter & Gamble", price: "---", high52w: "---", low52w: "---", change1D: "+0.1%", change1W: "+0.2%", change1M: "+1.5%", pe: 24, eps: 6.0, dy: 2.5, marketCap: "$360B", sector: "Consumer Staples", beta: 0.4, reasoning: "Defensive stock with strong brand portfolio.", fit_reason: "Low volatility and income.", signal: "Buy", type: "equity" },
-          { symbol: "BTC-USD", name: "Bitcoin", price: "---", high52w: "---", low52w: "---", change1D: "+2.0%", change1W: "+5.0%", change1M: "+18.0%", pe: null, eps: null, dy: null, marketCap: "$1.2T", sector: "Crypto", beta: 2.1, reasoning: "High-risk diversification; volatile.", fit_reason: "Risk-tolerant slice.", signal: "Hold", type: "crypto" },
+        const defaultStocks = [
+          { symbol: "AAPL", name: "Apple", reasoning: "Blue-chip tech with resilient cash flows.", fit_reason: "Stability + growth." },
+          { symbol: "MSFT", name: "Microsoft", reasoning: "Cloud/enterprise leader with recurring revenue.", fit_reason: "Long-term compounding." },
+          { symbol: "GOOGL", name: "Alphabet (Google)", reasoning: "Dominant in search and digital advertising.", fit_reason: "Core tech holding." },
+          { symbol: "AMZN", name: "Amazon", reasoning: "Leader in e-commerce and cloud (AWS).", fit_reason: "Growth and diversification." },
+          { symbol: "TSLA", name: "Tesla", reasoning: "EV market leader with high growth potential.", fit_reason: "High-risk, high-reward." },
+          { symbol: "JPM", name: "JPMorgan Chase", reasoning: "Largest US bank, diversified financial services.", fit_reason: "Financial sector exposure." },
+          { symbol: "PG", name: "Procter & Gamble", reasoning: "Defensive stock with strong brand portfolio.", fit_reason: "Low volatility and income." },
+          { symbol: "BTC-USD", name: "Bitcoin", reasoning: "High-risk diversification; volatile.", fit_reason: "Risk-tolerant slice." },
         ];
-        const saved = window.localStorage.getItem("jbysb_last_recs");
-        if (saved) {
-          const arr = JSON.parse(saved);
-          if (Array.isArray(arr) && arr.length > 0) {
-            setResults(arr);
-            try { setResults(await computeAndMergePeriodChanges(arr)); } catch {}
-            baselineLoaded = true;
-          }
-        }
-        if (!baselineLoaded) {
-          // Fallback: try to refetch using last chat from sessionStorage
-          const didRefetch = await refetchFromSession();
-          if (didRefetch) {
-            baselineLoaded = true;
-          }
-        }
-        if (!baselineLoaded) {
-          // Show empty state instead of hardcoded fallback
-          setResults([]);
-        }
+        const merged = await refreshQuotesForResults(defaultStocks);
+        setResults(Array.isArray(merged) ? merged : []);
       } catch {
-        // Show empty state on error instead of hardcoded fallback
         setResults([]);
       } finally {
         setInitialLoading(false);
@@ -379,12 +336,7 @@ export default function RecommendPage() {
         </section>
       ) : (
         <div className="text-center text-sm">
-          <div className="space-y-3">
-            <p>No saved recommendations.</p>
-            <div className="flex justify-center gap-3">
-              <button className="px-4 py-2 bg-black text-white rounded" onClick={refetchFromSession}>Try again</button>
-            </div>
-          </div>
+          <p>No stocks to display.</p>
         </div>
       )}
     </main>
