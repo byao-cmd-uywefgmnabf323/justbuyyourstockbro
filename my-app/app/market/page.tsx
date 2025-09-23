@@ -133,10 +133,6 @@ export default function RecommendPage() {
 
   useEffect(()=>{
     const init = async () => {
-      if (typeof window !== 'undefined' && !window.localStorage.getItem("jbysb_last_recs") && !window.sessionStorage.getItem("jbysb_last_chat")) {
-        router.replace("/");
-        return;
-      }
       try {
         let baselineLoaded = false;
         const CLIENT_FALLBACK = [
