@@ -23,14 +23,14 @@ export default function HeaderClient() {
             Academy
           </Link>
           <Link
-            href="/recommend"
-            className={clsx(navLinkClasses, pathname === '/recommend' ? activeClasses : inactiveClasses)}
+            href="/market"
+            className={clsx(navLinkClasses, pathname === '/market' ? activeClasses : inactiveClasses)}
           >
             Market
           </Link>
           <Link
-            href="/"
-            className={clsx(navLinkClasses, pathname === '/' ? activeClasses : inactiveClasses)}
+            href="/dashboard"
+            className={clsx(navLinkClasses, pathname === '/dashboard' ? activeClasses : inactiveClasses)}
           >
             Dashboard
           </Link>
